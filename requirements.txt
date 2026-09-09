@@ -9,10 +9,13 @@ numba
 h5py       # required for idata.to_netcdf(); not pulled in automatically
 pytest
 
-# Phase 2+ (not yet installed — customer analytics, causal, allocation, serving)
-# duckdb
+# Phase 2 (installed, in use — customer economics layer)
+duckdb
+lifetimes    # BG/NBD + Gamma-Gamma CLV
+openpyxl     # reads the UCI Online Retail II .xlsx source file
+
+# Phase 3+ (not yet installed — causal, allocation, serving)
 # polars
-# lifetimes           # BG/NBD + Gamma-Gamma CLV
 # statsmodels         # IV, DiD
 # cvxpy               # constrained budget allocator
 # pytrends             # Google Trends ingestion

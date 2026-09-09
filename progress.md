@@ -14,10 +14,12 @@ Last updated: 2026-09-09.
 | Bayesian MMM (adstock + Hill saturation, PyMC) | **Done** |
 | Diagnostics (r-hat, ESS, divergences, PPC, prior PC) | **Done** |
 | Correlation-sensitivity study (identification degradation) | Not started |
-| Data ingestion (Robyn/Meridian spine, Trends, FRED, weather, Olist) | Not started |
-| SQL analytics (cohorts, retention, RFM, CAC/LTV, category, delivery) | Not started |
+| Data ingestion — MMM media spine (Robyn/Meridian, Trends, FRED, weather) | Not started |
+| Data ingestion — customer data (Tier 4) | **Done, substituted dataset** (Olist → UCI Online Retail II; see docs/01) |
+| SQL analytics — cohorts, retention, RFM, CAC/LTV | **Done** |
+| SQL analytics — category contribution, delivery-impact-on-repeat | **Not feasible on substitute dataset** (needs Olist; see docs/01) |
 | Causal identification section + DiD/IV | Not started |
-| Customer layer (BG/NBD, Gamma-Gamma CLV) | Not started |
+| Customer layer — BG/NBD, Gamma-Gamma CLV | **Done** (validated on holdout; did not beat naive baseline — see docs/07) |
 | Experimentation design (geo-lift, power analysis) | Not started |
 | Budget allocator (posterior-based, constrained) | Not started |
 | Dashboard / API / deployment | Not started |
@@ -55,6 +57,38 @@ parameter). Full writeup: `docs/04-parameter-recovery-validation.md`. Raw
 outputs: `outputs/reports/recovery_report.md`, `recovery_table.csv`,
 `diagnostics_summary.csv` (regenerated on every `python -m
 simulate.recovery_study` run — check timestamps if re-verifying).
+
+## Phase 2: Customer economics layer
+
+Real transactional data (UCI Online Retail II, substituted for Olist — see
+docs/01-data-sources-and-honesty.md for why), not simulated.
+
+- [x] `ingest/uci_retail_loader.py` — downloads/cleans the dataset, builds
+      `data/processed/warehouse.duckdb` (805,549 rows, 5,878 customers,
+      Dec 2009–Dec 2011).
+- [x] `customer/channel_synth.py` — synthetic acquisition-channel + CAC
+      assignment (documented as illustrative, not real — no public
+      transactional dataset has real channel attribution).
+- [x] `sql/analytics/acquisition_cohorts.sql`, `retention_curves.sql`,
+      `rfm_segmentation.sql`, `cac_ltv_by_channel.sql` — all built and run
+      via DuckDB.
+- [x] `customer/cohorts.py` — runs the above, produces
+      `fig_cohort_retention_heatmap.png`, `fig_rfm_segments.png`,
+      `fig_ltv_cac_by_channel.png`.
+- [x] `customer/clv.py` — BG/NBD + Gamma-Gamma CLV (`lifetimes`), fit on a
+      calibration period and validated against actual holdout-period
+      revenue, compared against a naive flat-extrapolation baseline.
+      **Finding, reported as-is: BG/NBD+Gamma-Gamma did not clearly beat
+      naive on this dataset** (MAE 732 vs 659, corr 0.073 vs 0.068) — with
+      diagnosed reasons (Gamma-Gamma q=0.33 <1, mild frequency/monetary
+      correlation violating the independence assumption, wholesale-account
+      outliers). Full writeup: `docs/07-results.md`.
+- [ ] `sql/analytics/category_contribution.sql`,
+      `delivery_impact_on_repeat.sql` — not feasible on this substitute
+      dataset (no category taxonomy, no delivery timestamps); would need
+      real Olist access.
+- [x] `tests/test_channel_synth.py` — unit tests (3 passing, 8/8 total
+      across the repo).
 
 ## Environment notes (matters for reproducing runs)
 

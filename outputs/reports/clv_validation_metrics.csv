@@ -1,0 +1,2 @@
+n_customers,n_repeat_customers_calibration,n_excluded_from_model_fit_bulk_outliers,n_predictions_imputed_zero_history_edge_case,gamma_gamma_q_parameter,freq_monetary_correlation_calibration,mae_bgnbd_gg,mae_naive,corr_bgnbd_gg,corr_naive,holdout_months,calibration_period_end,observation_period_end
+4967,3328,50,534,0.33284979857994296,0.1708701726411423,732.108116118386,659.016097832197,0.07264608636267343,0.06827687159415302,6,2011-06-09,2011-12-09

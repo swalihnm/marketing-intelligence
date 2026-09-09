@@ -19,7 +19,9 @@ Genuine multi-channel marketing spend data is proprietary. This project does
 not pretend otherwise. See `docs/01-data-sources-and-honesty.md` for exactly
 which parts of the pipeline run on simulated data with known ground truth,
 which run on public reference datasets, and which run on real transactional
-data (Olist).
+data (UCI Online Retail II, substituted for the spec's original choice,
+Olist — Kaggle needs an auth token this environment doesn't have; the doc
+explains the substitution and what it costs).
 
 ## Headline result: parameter recovery
 
@@ -46,28 +48,45 @@ python -m simulate.recovery_study
 Outputs land in `outputs/figures/` and `outputs/reports/` — see
 `outputs/reports/recovery_report.md` after running.
 
+## Customer economics layer
+
+Real transactional data (UCI Online Retail II — 805,549 cleaned line items,
+5,878 customers, Dec 2009–Dec 2011): cohorts, retention, RFM segmentation,
+CAC/LTV by (synthetic — see docs) channel, and BG/NBD + Gamma-Gamma CLV
+validated on a holdout period against a naive baseline. Headline finding
+reported as-is, not massaged: **the CLV model didn't clearly beat naive
+extrapolation on this dataset**, with diagnosed reasons. Full results:
+`docs/07-results.md`.
+
+```bash
+python -m ingest.uci_retail_loader   # downloads + cleans + builds the warehouse
+python -m customer.cohorts           # cohorts, retention, RFM, CAC/LTV
+python -m customer.clv               # BG/NBD + Gamma-Gamma, holdout-validated
+```
+
 ## Repository layout
 
 ```
-simulate/       ground-truth DGP + parameter recovery harness      [built]
-transforms/     adstock (geometric) + saturation (Hill)             [built]
-mmm/            Bayesian MMM in PyMC — priors, model, sampling      [built]
-ingest/         Robyn/Meridian spine, Trends, FRED, weather, Olist  [planned]
-sql/analytics/  cohorts, retention, RFM, CAC/LTV, category, delivery [planned]
-causal/         DiD / IV supporting identification analysis          [planned]
-customer/       cohorts, BG/NBD + Gamma-Gamma CLV (Olist)            [planned]
-allocate/       posterior-based constrained budget optimizer         [planned]
-experiment/     geo-lift design + power analysis                     [planned]
-app/            FastAPI + dashboard, deployed                        [planned]
-docs/           methodology, causal identification, limitations      [in progress]
+simulate/       ground-truth DGP + parameter recovery harness           [built]
+transforms/     adstock (geometric) + saturation (Hill)                  [built]
+mmm/            Bayesian MMM in PyMC — priors, model, sampling           [built]
+ingest/         UCI Online Retail II loader [built]; Robyn/Meridian, Trends, FRED, weather [planned]
+sql/analytics/  cohorts, retention, RFM, CAC/LTV [built]; category, delivery [not feasible — see docs/01]
+causal/         DiD / IV supporting identification analysis               [planned]
+customer/       cohorts, channel_synth, BG/NBD + Gamma-Gamma CLV          [built]
+allocate/       posterior-based constrained budget optimizer              [planned]
+experiment/     geo-lift design + power analysis                          [planned]
+app/            FastAPI + dashboard, deployed                             [planned]
+docs/           methodology, data honesty, results, limitations           [in progress]
 ```
 
 ## Stack
 
 Python 3.12, PyMC 5/6 + ArviZ (no C++ compiler required — falls back to a
-pure-Python/numba backend automatically), NumPy/Pandas/SciPy/Matplotlib now;
-DuckDB, Polars, `lifetimes`, CVXPY, `statsmodels`, FastAPI, Streamlit planned
-for later phases (see `requirements.txt`).
+pure-Python/numba backend automatically), NumPy/Pandas/SciPy/Matplotlib,
+DuckDB, `lifetimes` — all installed and in use. Polars, CVXPY,
+`statsmodels`, `pytrends`, `fredapi`, FastAPI, Streamlit planned for later
+phases (see `requirements.txt`).
 
 ## Limitations
 
