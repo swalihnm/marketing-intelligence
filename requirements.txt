@@ -1,0 +1,23 @@
+# Core (installed, in use — Phase 1: simulator + Bayesian MMM)
+numpy
+pandas
+scipy
+matplotlib
+pymc>=5
+arviz
+numba
+h5py       # required for idata.to_netcdf(); not pulled in automatically
+pytest
+
+# Phase 2+ (not yet installed — customer analytics, causal, allocation, serving)
+# duckdb
+# polars
+# lifetimes           # BG/NBD + Gamma-Gamma CLV
+# statsmodels         # IV, DiD
+# cvxpy               # constrained budget allocator
+# pytrends             # Google Trends ingestion
+# fredapi              # FRED macro covariates
+# holidays
+# fastapi
+# uvicorn
+# streamlit

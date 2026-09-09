@@ -1,0 +1,77 @@
+# Marketing Mix Modelling, Budget Allocation & Customer Economics
+
+A Bayesian marketing mix model (MMM) that estimates the incremental revenue
+contribution of each marketing channel, a constrained budget allocator built
+on top of the posterior, and a customer economics layer (cohorts, retention,
+CAC/LTV). Built from the spec in `PROJECT-03-marketing-mix-modelling.md`.
+
+The deliverable is not an R-squared. It's a **budget reallocation
+recommendation with uncertainty bands**, plus a stated plan (a designed
+geo-lift experiment) to prove it.
+
+See `progress.md` for what's built vs. planned — this is a multi-week build
+and that file is the source of truth on current status, updated as work
+lands.
+
+## Why this project has a data section before a modelling section
+
+Genuine multi-channel marketing spend data is proprietary. This project does
+not pretend otherwise. See `docs/01-data-sources-and-honesty.md` for exactly
+which parts of the pipeline run on simulated data with known ground truth,
+which run on public reference datasets, and which run on real transactional
+data (Olist).
+
+## Headline result: parameter recovery
+
+Before trusting any MMM output on real-shaped data, this project asks a
+sharper question first: **if you know the true channel elasticities, adstock
+decay rates, and saturation curves that generated a revenue series, does the
+Bayesian model's posterior recover them?**
+
+`simulate/dgp.py` generates weekly revenue data under known parameters
+(including correlated cross-channel spend, the actual enemy of MMM
+identification). `mmm/model.py` fits the same model a real analysis would
+use. `simulate/recovery_study.py` fits the model to the simulated data and
+reports coverage of the true parameters inside the posterior HDI, r-hat,
+divergences, and forest-plot recovery figures.
+
+Run it yourself:
+
+```bash
+python -m venv .venv
+.venv\Scripts\pip install -r requirements.txt
+python -m simulate.recovery_study
+```
+
+Outputs land in `outputs/figures/` and `outputs/reports/` — see
+`outputs/reports/recovery_report.md` after running.
+
+## Repository layout
+
+```
+simulate/       ground-truth DGP + parameter recovery harness      [built]
+transforms/     adstock (geometric) + saturation (Hill)             [built]
+mmm/            Bayesian MMM in PyMC — priors, model, sampling      [built]
+ingest/         Robyn/Meridian spine, Trends, FRED, weather, Olist  [planned]
+sql/analytics/  cohorts, retention, RFM, CAC/LTV, category, delivery [planned]
+causal/         DiD / IV supporting identification analysis          [planned]
+customer/       cohorts, BG/NBD + Gamma-Gamma CLV (Olist)            [planned]
+allocate/       posterior-based constrained budget optimizer         [planned]
+experiment/     geo-lift design + power analysis                     [planned]
+app/            FastAPI + dashboard, deployed                        [planned]
+docs/           methodology, causal identification, limitations      [in progress]
+```
+
+## Stack
+
+Python 3.12, PyMC 5/6 + ArviZ (no C++ compiler required — falls back to a
+pure-Python/numba backend automatically), NumPy/Pandas/SciPy/Matplotlib now;
+DuckDB, Polars, `lifetimes`, CVXPY, `statsmodels`, FastAPI, Streamlit planned
+for later phases (see `requirements.txt`).
+
+## Limitations
+
+See `docs/06-assumptions-and-limitations.md`. In short: the media spine will
+be partly simulated because real spend data is proprietary; the parameter
+recovery study is what stands in for that missing ground truth; MMM
+coefficients are causal only under stated, documented assumptions.

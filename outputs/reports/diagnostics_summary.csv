@@ -1,0 +1,2 @@
+n_weeks,spend_correlation,chains,draws_per_chain,tune,elapsed_seconds,r_hat_max,ess_bulk_min,n_divergences
+156,0.5,4,1000,1000,236.5,1.0033244312886167,1212.6165299088489,0
