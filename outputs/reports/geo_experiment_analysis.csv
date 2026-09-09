@@ -1,0 +1,2 @@
+treatment_market,control_market,pre_period_correlation,tracking_error_std,true_lift_pct,true_lift_abs,did_estimate_abs,estimated_lift_pct,z_stat,p_value,significant_at_alpha,planned_post_weeks,mde_abs_at_planned_duration,mde_pct_at_planned_duration,duration_weeks_needed_for_true_effect
+market_00,market_33,0.6923446319351954,783.0078102511806,0.12,1819.7442098067586,2598.2378866558884,0.1713364684544406,9.385508572134517,0.0,True,8,775.5770292521007,0.05114413498814498,1.4531791909364429

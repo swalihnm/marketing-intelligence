@@ -64,6 +64,22 @@ python -m customer.cohorts           # cohorts, retention, RFM, CAC/LTV
 python -m customer.clv               # BG/NBD + Gamma-Gamma, holdout-validated
 ```
 
+## Experimentation design: geo-lift + power analysis
+
+The spec flags this as one of two things to never cut (parameter recovery
+is the other, and is done). Built on 40 simulated DMA-style markets with a
+**known injected effect**, so the design itself could be validated the same
+way the MMM was: matched-market selection by pre-period trend correlation,
+power analysis (minimum detectable effect vs. test duration), and a
+difference-in-differences test that — checked against the known
+ground-truth effect — actually detects it (+12% true, +17.1% estimated,
+p<0.001). Pre-registration doc: `docs/08-geo-lift-preregistration.md`. Full
+writeup, including why the point estimate overshoots: `docs/05-experimentation-notes.md`.
+
+```bash
+python -m experiment.analyze   # runs the simulation, matching, and DiD test end to end
+```
+
 ## Repository layout
 
 ```
@@ -75,7 +91,7 @@ sql/analytics/  cohorts, retention, RFM, CAC/LTV [built]; category, delivery [no
 causal/         DiD / IV supporting identification analysis               [planned]
 customer/       cohorts, channel_synth, BG/NBD + Gamma-Gamma CLV          [built]
 allocate/       posterior-based constrained budget optimizer              [planned]
-experiment/     geo-lift design + power analysis                          [planned]
+experiment/     geo-lift design + power analysis                          [built]
 app/            FastAPI + dashboard, deployed                             [planned]
 docs/           methodology, data honesty, results, limitations           [in progress]
 ```

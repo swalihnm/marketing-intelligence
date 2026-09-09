@@ -20,7 +20,7 @@ Last updated: 2026-09-09.
 | SQL analytics — category contribution, delivery-impact-on-repeat | **Not feasible on substitute dataset** (needs Olist; see docs/01) |
 | Causal identification section + DiD/IV | Not started |
 | Customer layer — BG/NBD, Gamma-Gamma CLV | **Done** (validated on holdout; did not beat naive baseline — see docs/07) |
-| Experimentation design (geo-lift, power analysis) | Not started |
+| Experimentation design (geo-lift, power analysis) | **Done** (design validated against a known injected effect — see docs/05) |
 | Budget allocator (posterior-based, constrained) | Not started |
 | Dashboard / API / deployment | Not started |
 
@@ -90,6 +90,40 @@ docs/01-data-sources-and-honesty.md for why), not simulated.
 - [x] `tests/test_channel_synth.py` — unit tests (3 passing, 8/8 total
       across the repo).
 
+## Phase 3: Experimentation design (geo-lift + power analysis)
+
+Spec explicitly flags this as one of two things to never drop (the other,
+parameter recovery, was already done) — prioritized ahead of the causal
+identification section and the budget allocator for that reason. Built on
+simulated multi-market data (real UCI data is 97%+ single-country by
+revenue — not usable for geo matching; see `experiment/geo_simulate.py`
+docstring), with a known injected effect so the design itself could be
+validated, same discipline as the MMM recovery study.
+
+- [x] `experiment/geo_simulate.py` — 40 simulated DMA-style markets, 26-week
+      pre-period + 8-week post-period, known +12% injected lift in one
+      treatment market.
+- [x] `experiment/geo_matching.py` — matched control selection by
+      pre-period trend correlation; produces the matched-pair chart.
+- [x] `experiment/power.py` — MDE and required-duration calculations from
+      pre-period tracking error.
+- [x] `experiment/analyze.py` — the actual DiD test, run on the (known-
+      ground-truth) post-period data.
+- [x] `docs/08-geo-lift-preregistration.md` — hypothesis, primary metric,
+      design, stopping rule, decided in advance.
+- [x] `docs/05-experimentation-notes.md` — peeking, fixed sample size,
+      multiple comparisons, statistical vs. practical significance, plus
+      the validation result.
+- [x] `tests/test_power.py` — unit tests (4 passing, 12/12 total across the
+      repo).
+
+**Validation result**: the design detected the known +12% injected effect
+(estimated 17.1%, z=9.4, p<0.001) — the overshoot is expected single-draw
+estimation noise, not a design flaw. The planned 8-week duration turned out
+to have more power than strictly needed (MDE ~5.1% vs. the 12% true
+effect) — itself a useful finding, not just a "it worked" result. Full
+numbers: `outputs/reports/geo_experiment_analysis.csv`.
+
 ## Environment notes (matters for reproducing runs)
 
 - No C++ compiler (`g++`/`cl.exe`) is present in this environment. PyMC 6 /
@@ -121,14 +155,15 @@ docs/01-data-sources-and-honesty.md for why), not simulated.
   future real-data fit) — response curves per channel are not yet built as a
   standalone deliverable (currently only exist implicitly via the recovery
   forest plots).
-- Week 3: customer layer (cohorts, CLV) + causal identification + experiment
-  design — not started.
+- Week 3: customer layer (cohorts, CLV) — done (Phase 2). Experiment design —
+  done (Phase 3). Causal identification (DiD/IV) — not started.
 - Week 4: allocator, dashboard, deploy, docs — not started.
 
 ## Cut order if time runs short (per spec, restated here as a reminder)
 
 Drop, in this order, before dropping anything else: IV analysis (keep DiD),
 Weibull adstock (keep geometric — already the current state), budget sweep.
-**Never drop the parameter recovery study or the experiment design** — of
-those two, parameter recovery is done; experiment design is not started yet
-and should be prioritized over layers like the dashboard if time is tight.
+**Never drop the parameter recovery study or the experiment design** — both
+are now done (Phases 1 and 3). Remaining work (causal identification,
+allocator, dashboard) can be prioritized/cut freely against this list
+without touching either protected piece.
