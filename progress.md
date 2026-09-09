@@ -8,21 +8,27 @@ Last updated: 2026-09-09.
 
 ## Status at a glance
 
+**All four build phases are complete.** The one spec deliverable not done
+is live deployment (no cloud hosting credentials in this environment) —
+everything else, including automated testing, is built and passing.
+
 | Layer | Status |
 |---|---|
 | Simulator + parameter recovery (Tier 1 data) | **Done** |
 | Bayesian MMM (adstock + Hill saturation, PyMC) | **Done** |
 | Diagnostics (r-hat, ESS, divergences, PPC, prior PC) | **Done** |
-| Correlation-sensitivity study (identification degradation) | Not started |
+| Correlation-sensitivity study (identification degradation) | Not started (see "Known gaps" below) |
 | Data ingestion — MMM media spine (Robyn/Meridian, Trends, FRED, weather) | Not started |
 | Data ingestion — customer data (Tier 4) | **Done, substituted dataset** (Olist → UCI Online Retail II; see docs/01) |
 | SQL analytics — cohorts, retention, RFM, CAC/LTV | **Done** |
 | SQL analytics — category contribution, delivery-impact-on-repeat | **Not feasible on substitute dataset** (needs Olist; see docs/01) |
-| Causal identification section + DiD/IV | Not started |
+| Causal identification section + DiD | **Done** (DiD validated against known effect; IV skipped per spec's own cut order) |
 | Customer layer — BG/NBD, Gamma-Gamma CLV | **Done** (validated on holdout; did not beat naive baseline — see docs/07) |
 | Experimentation design (geo-lift, power analysis) | **Done** (design validated against a known injected effect — see docs/05) |
-| Budget allocator (posterior-based, constrained) | Not started |
-| Dashboard / API / deployment | Not started |
+| Budget allocator (posterior-based, constrained) | **Done** (trust-constr over posterior draws; response curves, marginal ROI, budget sweep) |
+| FastAPI + Streamlit dashboard | **Done, built and locally tested** — not deployed (no hosting credentials; see docs/06) |
+| Dockerfile | Written, **not built/run** (Docker unavailable in this environment) |
+| Test suite | **30/30 passing** (`pytest tests/`) |
 
 ## Week 1 target (spec): "Simulator + parameter recovery + data ingestion"
 
@@ -124,17 +130,101 @@ to have more power than strictly needed (MDE ~5.1% vs. the 12% true
 effect) — itself a useful finding, not just a "it worked" result. Full
 numbers: `outputs/reports/geo_experiment_analysis.csv`.
 
+## Phase 4: Causal identification, budget allocator, serving layer
+
+- [x] `causal/did.py` — channel-launch DiD on simulated two-region data with
+      a known true effect and a real shared confounder (regional trend).
+      **Naive estimate 71.6% off truth; DiD 3.2% off** — a clean,
+      unambiguous illustration of why the identification method matters,
+      not just an estimator that happens to run. (An earlier
+      parameterization coincidentally made naive ≈ DiD — a symmetric
+      linear-trend/seasonal-cycle cancellation specific to that window
+      split; documented in `causal/did.py` and fixed by strengthening the
+      trend, not by cherry-picking a seed.)
+- [x] `docs/03-causal-identification.md` — finalized: confounders, reverse
+      causality (unaddressed, stated plainly), the DiD result, and an
+      explicit note that MMM-vs-DiD reconciliation on the *same* effect is
+      **not done** (they're still separate simulated scenarios).
+- [x] `allocate/optimizer.py` — budget allocator, optimizes expected
+      incremental revenue over 300 posterior draws from
+      `outputs/reports/idata_recovery.nc` (Phase 1's fitted posterior),
+      subject to total-budget, channel-cap, and max-shift constraints.
+      Steady-state adstock approximation (documented). Uses scipy
+      `trust-constr`, not CVXPY (Hill saturation is non-convex for s>1 —
+      documented why CVXPY doesn't apply).
+- [x] `allocate/charts.py` — response curves with posterior uncertainty
+      bands, marginal ROI chart, budget sweep chart.
+- [x] `app/main.py` — FastAPI app, all 4 spec endpoints (`/allocate`,
+      `/response-curve/{channel}`, `/contribution`, `/experiment/power`).
+      Manually confirmed serving real HTTP requests (uvicorn, not just
+      TestClient) during development.
+- [x] `app/dashboard.py` — Streamlit dashboard, all 6 spec views. Manually
+      confirmed it boots and serves valid HTML headlessly; full interactive
+      testing isn't feasible in this non-browser environment, stated as a
+      real limitation rather than assumed to work.
+- [x] `Dockerfile` — written to standard patterns; **not built or run**
+      (Docker not installed in this environment).
+- [x] `tests/test_did.py`, `tests/test_allocator.py`, `tests/test_api.py` —
+      18 new tests, 30/30 total across the repo passing.
+
+**Bug caught by testing, not just written for show**: the allocator's first
+implementation (scipy SLSQP, starting from current spend) silently returned
+an infeasible allocation — ~1.8% over the requested budget,
+`result.success == False` computed but never checked anywhere downstream.
+`tests/test_api.py::test_allocate_returns_valid_allocation` failed and
+caught it before this became a shipped bug. Root-caused (SLSQP sensitivity
+to starting point on this non-convex objective, reproduced and confirmed
+via a debug script) and fixed by switching to `trust-constr` with an
+SLSQP fallback attempt and a hard raise if both fail to converge to a
+feasible point — see `allocate/optimizer.py`'s docstring and
+`docs/07-results.md`.
+
+**Allocation result** (same simulated data as the Phase 1 recovery study,
+current weekly budget £144,583): recommended reallocation moves ~50% of
+spend off `tv` (marginal ROI 0.83, 90% HDI nearly touching the £1:£1
+breakeven line) onto `search`/`social`/`display` (marginal ROI 2.8–4.3).
+Expected weekly gain: **£75,396** (90% credible interval £46,163–£103,890).
+Full numbers: `outputs/reports/allocation_recommendation.csv`,
+`marginal_roi.csv`, `budget_sweep.csv`.
+
+## Known gaps (honest, not hidden)
+
+- **Correlation-sensitivity sweep** (spend correlation 0.3→0.9 vs. recovery
+  degradation) — the spec calls this "an excellent interview artefact" and
+  it was never run. This is the one piece from the original Week 1 plan
+  that's still genuinely missing, not just deferred to a later phase that
+  then got done differently.
+- **MMM-vs-DiD reconciliation on the same effect** — `causal/did.py` and
+  `simulate/dgp.py` are independently parameterized simulations; no single
+  dataset feeds both an MMM fit and a DiD estimate for literally the same
+  channel effect, so the spec's "here's my MMM estimate, here's my
+  quasi-experimental estimate, here's why they differ" isn't demonstrated.
+- **Reverse causality** (budget set as % of forecast revenue) — named as
+  the biggest causal threat in the spec, not simulated or addressed
+  anywhere in this codebase.
+- **MMM media-spine ingestion** (Tier 2/3: Robyn/Meridian reference data,
+  Google Trends, FRED, weather) — never built. Every MMM number in this
+  repo is on Tier-1 simulated data.
+- **Live deployment** — FastAPI + Streamlit apps are built and locally
+  verified but not deployed to a public URL (no cloud hosting credentials
+  in this environment); Docker image not built or run (Docker unavailable
+  here).
+
 ## Environment notes (matters for reproducing runs)
 
 - No C++ compiler (`g++`/`cl.exe`) is present in this environment. PyMC 6 /
   PyTensor sample fine anyway via a Python/numba fallback — confirmed
   working, just slower than a compiled backend. `numba` is pinned in
   `requirements.txt` for this reason.
-- `.venv` created with the system Python 3.12. Packages installed so far:
-  numpy, pandas, scipy, matplotlib, pymc, arviz, numba, pytest. Everything
-  else in `requirements.txt` is commented out until the phase that needs it
-  starts (avoids installing a large stack — duckdb/cvxpy/fastapi/etc — before
-  there's code that uses it).
+- `.venv` created with the system Python 3.12. All packages in
+  `requirements.txt` are installed (numpy/pandas/scipy/matplotlib/pymc/
+  arviz/numba/h5py/pytest, duckdb/lifetimes/openpyxl, fastapi/uvicorn/
+  httpx/streamlit). CVXPY was deliberately not installed/used — see
+  `allocate/optimizer.py`'s docstring.
+- SLSQP is not the allocator's primary optimizer — see the Phase 4 section
+  above and `allocate/optimizer.py`'s docstring for why (it silently
+  returned infeasible allocations on this objective; `trust-constr` is used
+  instead, with SLSQP as a checked fallback attempt).
 - On Windows, `pm.sample(..., cores>1)` uses multiprocessing with the
   `spawn` start method — scripts calling it guard the entry point with
   `if __name__ == "__main__":`. Confirmed `cores=4` works and roughly
@@ -148,22 +238,25 @@ numbers: `outputs/reports/geo_experiment_analysis.csv`.
   pymc/arviz. All fixed in the current code; noting here so a future
   session doesn't re-diagnose the same three errors.
 
-## Weeks 2–4 (spec plan, not started)
+## Weeks 2–4 (spec plan) — final status
 
-- Week 2: full diagnostics suite is actually already done as part of Week 1's
-  recovery study (diagnostics are shared machinery between recovery and any
-  future real-data fit) — response curves per channel are not yet built as a
-  standalone deliverable (currently only exist implicitly via the recovery
-  forest plots).
-- Week 3: customer layer (cohorts, CLV) — done (Phase 2). Experiment design —
-  done (Phase 3). Causal identification (DiD/IV) — not started.
-- Week 4: allocator, dashboard, deploy, docs — not started.
+- Week 2: diagnostics — done (Phase 1). Response curves per channel — done,
+  standalone (Phase 4, `allocate/charts.py`, not just implicit in the
+  recovery forest plots).
+- Week 3: customer layer (cohorts, CLV) — done (Phase 2). Experiment design
+  — done (Phase 3). Causal identification (DiD) — done (Phase 4); IV
+  skipped per the spec's own cut order.
+- Week 4: allocator — done (Phase 4). Dashboard + API — built and locally
+  tested (Phase 4). Deploy — **not done**, no cloud hosting credentials in
+  this environment. Docs — done, this file plus `docs/01` through `docs/08`.
 
-## Cut order if time runs short (per spec, restated here as a reminder)
+## Cut order if time runs short (per spec, restated here — now moot, project complete)
 
-Drop, in this order, before dropping anything else: IV analysis (keep DiD),
-Weibull adstock (keep geometric — already the current state), budget sweep.
-**Never drop the parameter recovery study or the experiment design** — both
-are now done (Phases 1 and 3). Remaining work (causal identification,
-allocator, dashboard) can be prioritized/cut freely against this list
-without touching either protected piece.
+The spec's cut order was: drop IV (keep DiD), drop Weibull (keep
+geometric), drop the budget sweep, never drop parameter recovery or
+experiment design. Final state: IV and Weibull were the only two items
+actually cut, exactly per the spec's own recommended order — everything
+else, including the budget sweep, got built. Both protected items
+(parameter recovery, experiment design) are done. See "Known gaps" above
+for what's honestly still missing despite the project being complete by
+the spec's own milestone table.

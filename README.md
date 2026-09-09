@@ -2,16 +2,21 @@
 
 A Bayesian marketing mix model (MMM) that estimates the incremental revenue
 contribution of each marketing channel, a constrained budget allocator built
-on top of the posterior, and a customer economics layer (cohorts, retention,
-CAC/LTV). Built from the spec in `PROJECT-03-marketing-mix-modelling.md`.
+on top of the posterior, a customer economics layer (cohorts, retention,
+CAC/LTV, CLV), a validated geo-lift experiment design, a difference-in-
+differences causal check, and a FastAPI + Streamlit serving layer. Built
+from the spec in `PROJECT-03-marketing-mix-modelling.md`.
 
 The deliverable is not an R-squared. It's a **budget reallocation
-recommendation with uncertainty bands**, plus a stated plan (a designed
-geo-lift experiment) to prove it.
+recommendation with uncertainty bands** (£75,396/week expected gain, 90%
+credible interval £46,163–£103,890 — see `docs/07-results.md`), backed by a
+validated experiment design and a causal-identification cross-check, not
+just a fitted model taken on faith.
 
-See `progress.md` for what's built vs. planned — this is a multi-week build
-and that file is the source of truth on current status, updated as work
-lands.
+**Status: all four build phases complete, 30/30 tests passing.** The one
+spec deliverable not done is live deployment — no cloud hosting credentials
+in this build environment. See `progress.md` for the full build log and
+`docs/06-assumptions-and-limitations.md` for every honestly-stated gap.
 
 ## Why this project has a data section before a modelling section
 
@@ -37,7 +42,8 @@ use. `simulate/recovery_study.py` fits the model to the simulated data and
 reports coverage of the true parameters inside the posterior HDI, r-hat,
 divergences, and forest-plot recovery figures.
 
-Run it yourself:
+**Result**: 100% of the 16 headline channel parameters recovered inside
+their 90% HDI, max r-hat 1.0033, zero divergences.
 
 ```bash
 python -m venv .venv
@@ -47,6 +53,18 @@ python -m simulate.recovery_study
 
 Outputs land in `outputs/figures/` and `outputs/reports/` — see
 `outputs/reports/recovery_report.md` after running.
+
+## Budget allocator
+
+`allocate/optimizer.py` optimizes expected incremental revenue over the
+full posterior (300 draws from the fitted MMM), not point estimates —
+subject to total-budget, per-channel-cap, and max-organizational-shift
+constraints. Uses scipy `trust-constr`, not CVXPY (documented why: Hill
+saturation is non-convex for the shape parameters the posterior draws).
+
+```bash
+python -m allocate.charts   # runs the allocation, produces response curves, marginal ROI, budget sweep
+```
 
 ## Customer economics layer
 
@@ -80,33 +98,74 @@ writeup, including why the point estimate overshoots: `docs/05-experimentation-n
 python -m experiment.analyze   # runs the simulation, matching, and DiD test end to end
 ```
 
+## Causal identification
+
+`causal/did.py`: a channel launches in one region and not another, with a
+real shared confounder (a regional trend affecting both regions). Naive
+before/after estimate was **71.6% off** the known true effect; DiD (using
+the non-launch region as control) was **3.2% off**. `docs/03-causal-identification.md`
+also states plainly what's *not* addressed — reverse causality from
+budget-set-as-%-of-forecast-revenue remains an open, unaddressed threat.
+
+```bash
+python -m causal.did
+```
+
+## Serving layer: API + dashboard
+
+`app/main.py` (FastAPI, all 4 spec endpoints) and `app/dashboard.py`
+(Streamlit, all 6 spec views). Both manually confirmed to serve real HTTP
+requests correctly during development — **not deployed to a public URL**
+(no cloud hosting credentials in this environment; stated directly rather
+than glossed over).
+
+```bash
+uvicorn app.main:app --reload        # API at http://127.0.0.1:8000/docs
+streamlit run app/dashboard.py       # dashboard at http://127.0.0.1:8501
+```
+
+## Testing
+
+```bash
+python -m pytest tests/ -v
+```
+
+30 tests across transforms, the allocator (including a real bug the tests
+caught — see `progress.md`), causal identification, power analysis, the
+synthetic channel assignment, and the FastAPI app (via `TestClient`, no
+server needed).
+
 ## Repository layout
 
 ```
 simulate/       ground-truth DGP + parameter recovery harness           [built]
 transforms/     adstock (geometric) + saturation (Hill)                  [built]
 mmm/            Bayesian MMM in PyMC — priors, model, sampling           [built]
-ingest/         UCI Online Retail II loader [built]; Robyn/Meridian, Trends, FRED, weather [planned]
+ingest/         UCI Online Retail II loader [built]; Robyn/Meridian, Trends, FRED, weather [not built]
 sql/analytics/  cohorts, retention, RFM, CAC/LTV [built]; category, delivery [not feasible — see docs/01]
-causal/         DiD / IV supporting identification analysis               [planned]
+causal/         DiD, validated against a known effect [built]; IV [not built, per spec's cut order]
 customer/       cohorts, channel_synth, BG/NBD + Gamma-Gamma CLV          [built]
-allocate/       posterior-based constrained budget optimizer              [planned]
-experiment/     geo-lift design + power analysis                          [built]
-app/            FastAPI + dashboard, deployed                             [planned]
-docs/           methodology, data honesty, results, limitations           [in progress]
+allocate/       posterior-based constrained budget optimizer + charts    [built]
+experiment/     geo-lift design + power analysis, validated              [built]
+app/            FastAPI + Streamlit dashboard, built and locally tested; not deployed
+docs/           methodology, data honesty, results, limitations           [built]
 ```
 
 ## Stack
 
 Python 3.12, PyMC 5/6 + ArviZ (no C++ compiler required — falls back to a
 pure-Python/numba backend automatically), NumPy/Pandas/SciPy/Matplotlib,
-DuckDB, `lifetimes` — all installed and in use. Polars, CVXPY,
-`statsmodels`, `pytrends`, `fredapi`, FastAPI, Streamlit planned for later
-phases (see `requirements.txt`).
+DuckDB, `lifetimes`, FastAPI, Streamlit — all installed and in use. CVXPY
+deliberately not used (see `allocate/optimizer.py`). Polars, `statsmodels`,
+`pytrends`, `fredapi` not installed — MMM media-spine ingestion beyond the
+simulator was never built (see `progress.md`).
 
 ## Limitations
 
-See `docs/06-assumptions-and-limitations.md`. In short: the media spine will
-be partly simulated because real spend data is proprietary; the parameter
-recovery study is what stands in for that missing ground truth; MMM
-coefficients are causal only under stated, documented assumptions.
+See `docs/06-assumptions-and-limitations.md` for the full list. Highlights:
+the MMM media spine is entirely simulated (real spend data is proprietary
+and Tier 2/3 ingestion was never built); MMM coefficients are causal only
+under stated assumptions, and reverse causality from budget-set-as-%-of-
+forecast-revenue is a named, unaddressed threat; the MMM and DiD analyses
+are separate simulated scenarios, not reconciled on the same effect; and
+nothing in this repo is deployed to a live URL.

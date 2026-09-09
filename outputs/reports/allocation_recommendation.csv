@@ -1,0 +1,2 @@
+total_budget,current_tv,current_search,current_social,current_display,optimal_tv,optimal_search,optimal_social,optimal_display,expected_gain_mean,expected_gain_hdi90_lower,expected_gain_hdi90_upper,expected_response_current,expected_response_optimal
+144583.1411446674,62041.77951604044,35924.28587085053,26348.59269654381,20268.483061232615,31020.88975802022,49320.98105133764,33838.54574346062,30402.72459184892,63958.33710630725,35816.68851040478,92070.4971100954,435456.5228083431,499414.85991465044

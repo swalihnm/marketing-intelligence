@@ -14,13 +14,21 @@ duckdb
 lifetimes    # BG/NBD + Gamma-Gamma CLV
 openpyxl     # reads the UCI Online Retail II .xlsx source file
 
-# Phase 3+ (not yet installed — causal, allocation, serving)
+# Phase 3 (installed, in use — causal identification, experiment design)
+# (no new deps beyond core — DiD and geo-lift power analysis use numpy/scipy/pandas)
+
+# Phase 4 (installed, in use — budget allocator, API, dashboard)
+fastapi
+uvicorn
+httpx        # FastAPI TestClient dependency, used in tests/test_api.py
+streamlit
+
+# Not installed / not yet used — MMM media-spine ingestion beyond the
+# simulator (Robyn/Meridian reference spine, Trends, FRED, weather)
 # polars
-# statsmodels         # IV, DiD
-# cvxpy               # constrained budget allocator
-# pytrends             # Google Trends ingestion
-# fredapi              # FRED macro covariates
+# pytrends
+# fredapi
 # holidays
-# fastapi
-# uvicorn
-# streamlit
+# cvxpy   # considered for the allocator; not used — see allocate/optimizer.py's
+#         # docstring for why (Hill saturation is non-convex for s>1; uses
+#         # scipy trust-constr instead)

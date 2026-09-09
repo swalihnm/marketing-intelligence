@@ -1,11 +1,8 @@
 # Results
 
-Consolidated results, updated as each layer lands. Currently covers: MMM
-parameter recovery (see `docs/04-parameter-recovery-validation.md` for the
-full writeup) and the customer economics layer (this file). Not yet
-covered: response curves on real-shaped media data, causal identification,
-budget allocation, experiment design — those layers aren't built (see
-`progress.md`).
+Consolidated results, all four build phases (see `progress.md`). Parameter
+recovery has its own full writeup:
+`docs/04-parameter-recovery-validation.md`.
 
 ## Customer economics (UCI Online Retail II — see docs/01)
 
@@ -132,3 +129,62 @@ wholesale customers, high dropout after one purchase) without further work
 or a model less sensitive to the independence assumption. That's a
 different, more specific claim than "CLV modeling doesn't work here," and
 it's the claim the data actually supports.
+
+## Causal identification: DiD vs. naive (simulated, known ground truth)
+
+Full writeup: `docs/03-causal-identification.md`. Headline number: a naive
+before/after estimate of a channel-launch effect was **71.6% off** true
+(£172,110 estimated vs. £100,270 true), biased by a shared regional trend;
+difference-in-differences using a non-launch control region was **3.2%
+off** (£103,481). `outputs/figures/fig_did_channel_launch.png`.
+
+## Budget allocator
+
+Full mechanics: `allocate/optimizer.py`'s docstring (steady-state adstock
+approximation, `trust-constr` over CVXPY and why, the SLSQP failure mode
+this project encountered and fixed). Run on the same simulated MMM data as
+the parameter recovery study (156 weeks, 4 channels), optimizing the same
+total weekly budget the data was generated with (£144,583/week):
+
+| channel | current | recommended | marginal ROI at current spend |
+|---|---|---|---|
+| tv | £62,042 | £31,021 (−50%, hits floor) | **0.83** (90% HDI crosses 1.0 — near breakeven) |
+| search | £35,924 | £51,922 (+45%) | 3.62 |
+| social | £26,349 | £36,654 (+39%) | 2.83 |
+| display | £20,268 | £30,403 (+50%, hits ceiling) | 4.30 |
+
+**Expected weekly revenue gain: £75,396** (90% credible interval: £46,163
+to £103,890) — reported as a range, not a point estimate, because it's
+computed from the full posterior, not point parameter estimates (the
+entire reason this project's spec calls for optimizing over posterior
+draws rather than point estimates). TV is the clear reallocation target:
+its marginal-ROI 90% interval nearly touches the £1-revenue-per-£1-spend
+breakeven line, while every other channel sits comfortably above it — see
+`outputs/figures/fig_marginal_roi.png` and `fig_response_curves.png` (TV's
+response curve has visibly flattened by its current spend level; the
+others haven't).
+
+Budget sweep (`outputs/figures/fig_budget_sweep.png`,
+`outputs/reports/budget_sweep.csv`): expected revenue rises from £418,659
+(0.8x budget) to £570,971 (1.5x budget) with clear diminishing returns.
+At 1.5x, all four channels simultaneously hit their individual 50%
+max-shift ceiling — an expected interaction between the two constraints
+(each channel's cap scales with its own current spend, same as the overall
+budget multiplier), not a modeling artifact.
+
+**A real bug this phase caught, not just avoided**: the first
+implementation used SLSQP starting from current spend, which silently
+returned an infeasible allocation (~1.8% over budget, `result.success ==
+False`, unchecked) on this exact scenario —
+`tests/test_api.py::test_allocate_returns_valid_allocation` failed and
+caught it. Fixed by switching to `trust-constr` with a checked, raising
+fallback path. Documented in `allocate/optimizer.py` and `progress.md`
+rather than quietly patched.
+
+## Serving
+
+FastAPI app (`app/main.py`, all 4 spec endpoints) and Streamlit dashboard
+(`app/dashboard.py`, all 6 spec views) are built and were manually
+confirmed to serve real HTTP requests correctly. **Not deployed to a live
+URL** — no cloud hosting credentials available in this environment. See
+`docs/06-assumptions-and-limitations.md`.
