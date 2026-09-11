@@ -13,9 +13,11 @@ credible interval £46,163–£103,890 — see `docs/07-results.md`), backed by 
 validated experiment design and a causal-identification cross-check, not
 just a fitted model taken on faith.
 
-**Status: all four build phases complete, 30/30 tests passing.** The one
-spec deliverable not done is live deployment — no cloud hosting credentials
-in this build environment. See `progress.md` for the full build log and
+**Status: all four build phases complete, plus the correlation-sensitivity
+sweep, 31/31 tests passing.** A trimmed budget-allocator API is built,
+locally tested, and ready to deploy to Vercel — currently blocked on a
+permission on the connected Vercel account (see `progress.md`, Phase 5).
+See `progress.md` for the full build log and
 `docs/06-assumptions-and-limitations.md` for every honestly-stated gap.
 
 ## Why this project has a data section before a modelling section
@@ -53,6 +55,13 @@ python -m simulate.recovery_study
 
 Outputs land in `outputs/figures/` and `outputs/reports/` — see
 `outputs/reports/recovery_report.md` after running.
+
+**Correlation-sensitivity sweep** (`simulate/correlation_sensitivity.py`,
+`docs/09-correlation-sensitivity.md`): the same validation repeated at
+spend correlation 0.3 → 0.9. Coverage held at 100% throughout; point-
+estimate accuracy degraded monotonically (beta's mean error: 28% → 39%) —
+exactly the calibrated-but-less-precise behavior you want from a Bayesian
+estimator under rising multicollinearity.
 
 ## Budget allocator
 

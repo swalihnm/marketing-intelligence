@@ -55,11 +55,14 @@ this dataset size, without divergences or convergence problems.
 **Doesn't prove:** that this works on real spend data, where channels are
 often more correlated than 0.5, where the true functional form isn't
 exactly geometric-adstock-plus-Hill, and where confounders exist that
-aren't in the DGP at all (see `docs/03-causal-identification.md`, not yet
-written). The planned correlation-sensitivity sweep (`progress.md`, not yet
-run) is the next step: repeating this study at spend correlation 0.3 → 0.9
-to see where recovery degrades, which is a closer proxy for how fragile
-real-world identification might be.
+aren't in the DGP at all (see `docs/03-causal-identification.md`). The
+correlation-sensitivity sweep (`docs/09-correlation-sensitivity.md`) is
+the follow-on: repeating this study at spend correlation 0.3 → 0.9. Result:
+coverage held at 100% throughout, but point-estimate accuracy degraded
+monotonically (beta's mean error rose from 28% at correlation 0.3 to 39%
+at 0.9) — a closer proxy for how fragile real-world identification might
+be, and a reassuring sign that the model gets honestly less precise under
+collinearity rather than overconfidently wrong.
 
 ## Reproducing
 

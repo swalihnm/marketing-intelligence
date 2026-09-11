@@ -1,0 +1,134 @@
+﻿.\.venv\Scripts\python.exe : g++ not available, if using conda: `conda install gxx`
+At line:2 char:1
++ .\.venv\Scripts\python.exe -m simulate.correlation_sensitivity 2>&1 | ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (g++ not availab...da install gxx`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+--- fitting at spend_correlation=0.3 ---
+Initializing NUTS using jitter+adapt_diag...
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [intercept, trend_coef, season_a1, season_b1, season_a2, season_b2, price_coef, beta, alpha, hill_s, hill_k, 
+sigma]
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+Sampling 4 chains for 800 tune and 800 draw iterations (3_200 + 3_200 draws total) took 258 seconds.
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Sampling: [revenue_obs]
+{'spend_correlation': 0.3, 'elapsed_seconds': 291.3, 'r_hat_max': 1.004820076107192, 'n_divergences': 0, 'headline_coverage_pct': 100.0, 'mean_pct_error_beta': 28.14107949516488, 'mean_pct_error_alpha': 21.361737742845296, 'mean_pct_error_hill_s': 6.114400488122837, 'mean_pct_error_hill_k': 42.76502473092957}
+--- fitting at spend_correlation=0.5 ---
+Initializing NUTS using jitter+adapt_diag...
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [intercept, trend_coef, season_a1, season_b1, season_a2, season_b2, price_coef, beta, alpha, hill_s, hill_k, 
+sigma]
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+Sampling 4 chains for 800 tune and 800 draw iterations (3_200 + 3_200 draws total) took 244 seconds.
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Sampling: [revenue_obs]
+{'spend_correlation': 0.5, 'elapsed_seconds': 264.4, 'r_hat_max': 1.006015425160195, 'n_divergences': 0, 'headline_coverage_pct': 100.0, 'mean_pct_error_beta': 31.280223099358942, 'mean_pct_error_alpha': 21.567576654182304, 'mean_pct_error_hill_s': 7.147850285212358, 'mean_pct_error_hill_k': 40.53082997671643}
+--- fitting at spend_correlation=0.7 ---
+Initializing NUTS using jitter+adapt_diag...
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [intercept, trend_coef, season_a1, season_b1, season_a2, season_b2, price_coef, beta, alpha, hill_s, hill_k, 
+sigma]
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+Sampling 4 chains for 800 tune and 800 draw iterations (3_200 + 3_200 draws total) took 264 seconds.
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Sampling: [revenue_obs]
+{'spend_correlation': 0.7, 'elapsed_seconds': 323.7, 'r_hat_max': 1.0049673181457437, 'n_divergences': 0, 'headline_coverage_pct': 100.0, 'mean_pct_error_beta': 35.30257278529315, 'mean_pct_error_alpha': 24.761590614858534, 'mean_pct_error_hill_s': 8.743361793178703, 'mean_pct_error_hill_k': 40.05533027807732}
+--- fitting at spend_correlation=0.9 ---
+Initializing NUTS using jitter+adapt_diag...
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [intercept, trend_coef, season_a1, season_b1, season_a2, season_b2, price_coef, beta, alpha, hill_s, hill_k, 
+sigma]
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+Sampling 4 chains for 800 tune and 800 draw iterations (3_200 + 3_200 draws total) took 340 seconds.
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Sampling: [revenue_obs]
+{'spend_correlation': 0.9, 'elapsed_seconds': 390.0, 'r_hat_max': 1.0036547363945403, 'n_divergences': 0, 'headline_coverage_pct': 100.0, 'mean_pct_error_beta': 38.84984245945852, 'mean_pct_error_alpha': 31.344716597559128, 'mean_pct_error_hill_s': 8.180961996393105, 'mean_pct_error_hill_k': 45.3494279002681}
+   spend_correlation  ...  mean_pct_error_hill_k
+0                0.3  ...              42.765025
+1                0.5  ...              40.530830
+2                0.7  ...              40.055330
+3                0.9  ...              45.349428
+
+[4 rows x 9 columns]

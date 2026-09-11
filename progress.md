@@ -4,20 +4,21 @@ Tracking actual status against `PROJECT-03-marketing-mix-modelling.md`'s
 4-week plan (Section 10). Updated as work lands — this file, not memory of
 the spec, is the source of truth on what's actually built.
 
-Last updated: 2026-09-09.
+Last updated: 2026-09-12.
 
 ## Status at a glance
 
-**All four build phases are complete.** The one spec deliverable not done
-is live deployment (no cloud hosting credentials in this environment) —
-everything else, including automated testing, is built and passing.
+**All four build phases are complete, plus the correlation-sensitivity
+sweep** (the one gap explicitly called out as missing after Phase 4). Live
+deployment is in progress, blocked on a Vercel account permission only the
+user can fix — see "Live deployment" below.
 
 | Layer | Status |
 |---|---|
 | Simulator + parameter recovery (Tier 1 data) | **Done** |
 | Bayesian MMM (adstock + Hill saturation, PyMC) | **Done** |
 | Diagnostics (r-hat, ESS, divergences, PPC, prior PC) | **Done** |
-| Correlation-sensitivity study (identification degradation) | Not started (see "Known gaps" below) |
+| Correlation-sensitivity study (identification degradation) | **Done** — see docs/09-correlation-sensitivity.md |
 | Data ingestion — MMM media spine (Robyn/Meridian, Trends, FRED, weather) | Not started |
 | Data ingestion — customer data (Tier 4) | **Done, substituted dataset** (Olist → UCI Online Retail II; see docs/01) |
 | SQL analytics — cohorts, retention, RFM, CAC/LTV | **Done** |
@@ -187,13 +188,48 @@ Expected weekly gain: **£75,396** (90% credible interval £46,163–£103,890).
 Full numbers: `outputs/reports/allocation_recommendation.csv`,
 `marginal_roi.csv`, `budget_sweep.csv`.
 
+## Phase 5: Correlation-sensitivity sweep + trimmed-API deployment attempt
+
+- [x] `simulate/correlation_sensitivity.py` — reuses the recovery study's
+      validation logic, swept across `spend_correlation` = 0.3, 0.5, 0.7,
+      0.9 (4 full PyMC fits, ~800 tune/800 draws each, ~21 min total).
+      **Result**: headline parameter HDI coverage held at 100% across every
+      level (well-calibrated, no overconfidence under collinearity), but
+      point-estimate accuracy degraded monotonically — beta's mean % error
+      rose from 28.1% (correlation 0.3) to 38.8% (correlation 0.9), alpha's
+      from 21.4% to 31.3%. Clean diagnostics throughout (r-hat ≤ 1.006, 0
+      divergences at every level). Full writeup:
+      `docs/09-correlation-sensitivity.md`, cross-linked from docs/04.
+- [x] `tests/test_correlation_sensitivity.py` — 1 new test (sweep range
+      sanity check; the actual fit-and-score function isn't unit-tested
+      directly, since it requires a full PyMC sampling run — too slow for
+      the test suite. 31/31 total tests passing.
+- [~] **Trimmed API deployment to Vercel — built, tested locally, blocked
+      on a permission on the user's Vercel account.** `deploy/vercel-api/`
+      is a self-contained, numpy+scipy-only (no PyMC/arviz at runtime)
+      reimplementation of `/allocate`, `/response_curve`, `/power`,
+      `/contribution`, serving a pre-fitted posterior exported via
+      `deploy/export_for_vercel.py` (80 draws, rounded to 2-4 decimals,
+      ~11KB + ~9KB JSON). Verified locally: `optimize_allocation` on the
+      80-draw export reproduces the full 300-draw result closely
+      (£77,145 vs £75,396 mean expected gain — consistent given the
+      smaller sample). `deploy_to_vercel` (both without and with the
+      team explicitly specified — team `devnathcp1-6112's projects`,
+      id `team_NWL2iG68aS5apZp5RXecYImR`) fails both times with the
+      identical error: `403 "You don't have permission to create a
+      project"`. The account can list the team's existing projects
+      (`frontend`, `orderorbit`, `orderorbit_dash`, `orderorbit-funt`)
+      but the connected token can't create a new one via this path —
+      a Vercel account/role restriction, not something fixable from this
+      session. User was asked to either adjust the connected account's
+      team role (Settings → Members) or pre-create an empty
+      `mmm-trimmed-api` project in the Vercel dashboard so deployment
+      targets an existing project instead of creating one. **Everything
+      needed to redeploy is ready** — this is purely waiting on the
+      user's Vercel account, not on any further engineering work.
+
 ## Known gaps (honest, not hidden)
 
-- **Correlation-sensitivity sweep** (spend correlation 0.3→0.9 vs. recovery
-  degradation) — the spec calls this "an excellent interview artefact" and
-  it was never run. This is the one piece from the original Week 1 plan
-  that's still genuinely missing, not just deferred to a later phase that
-  then got done differently.
 - **MMM-vs-DiD reconciliation on the same effect** — `causal/did.py` and
   `simulate/dgp.py` are independently parameterized simulations; no single
   dataset feeds both an MMM fit and a DiD estimate for literally the same
@@ -205,10 +241,12 @@ Full numbers: `outputs/reports/allocation_recommendation.csv`,
 - **MMM media-spine ingestion** (Tier 2/3: Robyn/Meridian reference data,
   Google Trends, FRED, weather) — never built. Every MMM number in this
   repo is on Tier-1 simulated data.
-- **Live deployment** — FastAPI + Streamlit apps are built and locally
-  verified but not deployed to a public URL (no cloud hosting credentials
-  in this environment); Docker image not built or run (Docker unavailable
-  here).
+- **Live deployment** — the full FastAPI + Streamlit apps are built and
+  locally verified but not deployed (no cloud hosting credentials for
+  those specifically). A trimmed API *is* ready to deploy to the user's
+  connected Vercel account (see Phase 5 above) but is blocked on a
+  permission issue on that account, not on missing engineering work.
+  Docker image not built or run (Docker unavailable in this environment).
 
 ## Environment notes (matters for reproducing runs)
 
