@@ -187,12 +187,17 @@ feasible point — see `allocate/optimizer.py`'s docstring and
 `docs/07-results.md`.
 
 **Allocation result** (same simulated data as the Phase 1 recovery study,
-current weekly budget £144,583): recommended reallocation moves ~50% of
-spend off `tv` (marginal ROI 0.83, 90% HDI nearly touching the £1:£1
-breakeven line) onto `search`/`social`/`display` (marginal ROI 2.8–4.3).
-Expected weekly gain: **£75,396** (90% credible interval £46,163–£103,890).
-Full numbers: `outputs/reports/allocation_recommendation.csv`,
-`marginal_roi.csv`, `budget_sweep.csv`.
+current weekly budget £144,583 — i.e. a pure reallocation, no budget
+increase): recommended reallocation moves ~50% of spend off `tv` (marginal
+ROI 0.83, 90% HDI nearly touching the £1:£1 breakeven line) onto
+`search`/`social`/`display` (marginal ROI 2.8–4.3). Expected weekly gain:
+**£63,958** (90% credible interval £35,817–£92,071). Full numbers:
+`outputs/reports/allocation_recommendation.csv`, `marginal_roi.csv`,
+`budget_sweep.csv`. (Verified consistent after the SLSQP→trust-constr fix
+below — re-ran and got the same figure to the dollar. A separate £150,000
+test budget used during API debugging, e.g. £75,396 quoted in an earlier
+draft of this file, was a *different scenario* — a budget increase, not a
+reallocation — not an inconsistency in the fix itself.)
 
 ## Phase 5: Correlation-sensitivity sweep + trimmed-API deployment attempt
 

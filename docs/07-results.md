@@ -165,12 +165,12 @@ total weekly budget the data was generated with (£144,583/week):
 | channel | current | recommended | marginal ROI at current spend |
 |---|---|---|---|
 | tv | £62,042 | £31,021 (−50%, hits floor) | **0.83** (90% HDI crosses 1.0 — near breakeven) |
-| search | £35,924 | £51,922 (+45%) | 3.62 |
-| social | £26,349 | £36,654 (+39%) | 2.83 |
+| search | £35,924 | £49,323 (+37%) | 3.62 |
+| social | £26,349 | £33,837 (+28%) | 2.83 |
 | display | £20,268 | £30,403 (+50%, hits ceiling) | 4.30 |
 
-**Expected weekly revenue gain: £75,396** (90% credible interval: £46,163
-to £103,890) — reported as a range, not a point estimate, because it's
+**Expected weekly revenue gain: £63,958** (90% credible interval: £35,817
+to £92,071) — reported as a range, not a point estimate, because it's
 computed from the full posterior, not point parameter estimates (the
 entire reason this project's spec calls for optimizing over posterior
 draws rather than point estimates). TV is the clear reallocation target:

@@ -8,8 +8,9 @@ differences causal check, and a FastAPI + Streamlit serving layer. Built
 from the spec in `PROJECT-03-marketing-mix-modelling.md`.
 
 The deliverable is not an R-squared. It's a **budget reallocation
-recommendation with uncertainty bands** (£75,396/week expected gain, 90%
-credible interval £46,163–£103,890 — see `docs/07-results.md`), backed by a
+recommendation with uncertainty bands** (£63,958/week expected gain at the
+same total budget, 90% credible interval £35,817–£92,071 — see
+`docs/07-results.md`), backed by a
 validated experiment design and a causal-identification cross-check, not
 just a fitted model taken on faith.
 
