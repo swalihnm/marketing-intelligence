@@ -130,13 +130,29 @@ or a model less sensitive to the independence assumption. That's a
 different, more specific claim than "CLV modeling doesn't work here," and
 it's the claim the data actually supports.
 
-## Causal identification: DiD vs. naive (simulated, known ground truth)
+## Causal identification (simulated, known ground truth)
 
-Full writeup: `docs/03-causal-identification.md`. Headline number: a naive
-before/after estimate of a channel-launch effect was **71.6% off** true
-(£172,110 estimated vs. £100,270 true), biased by a shared regional trend;
-difference-in-differences using a non-launch control region was **3.2%
-off** (£103,481). `outputs/figures/fig_did_channel_launch.png`.
+Full writeup: `docs/03-causal-identification.md`. Three cross-checks, each
+validated against a known simulated effect:
+
+- **DiD vs. naive**: naive before/after estimate of a channel-launch
+  effect was **70.9% off** true (£173,237 vs. £101,396), biased by a
+  shared regional trend; DiD using a non-launch control region was **3.2%
+  off** (£104,608). `outputs/figures/fig_did_channel_launch.png`.
+- **Reverse causality, naive OLS vs. IV/2SLS**: with budget set partly as
+  a function of forecast demand (the spec's named biggest threat), naive
+  OLS was **14.8% off** true beta (4.017 vs. 3.5); IV using an exogenous
+  cost-shifter instrument (the spec's own suggested "platform CPM shock")
+  was **0.14% off** (3.495). `outputs/figures/fig_reverse_causality_iv.png`.
+- **MMM vs. DiD, literally the same effect**: a single-channel MMM fit on
+  one region's data alone landed close by point estimate (2.5% off) but
+  with a **badly broken posterior** (r-hat 3.43, divergences in 64% of
+  draws) — a newly-launched channel's short, narrow-range spend history
+  doesn't give MMM enough variation to identify adstock/saturation, a
+  limitation DiD (3.2% off, clean diagnostics) doesn't share. The chart
+  (`outputs/figures/fig_mmm_vs_did.png`) carries this warning directly on
+  the image, since the bar heights alone look like clean agreement and
+  would mislead anyone who didn't check diagnostics.
 
 ## Budget allocator
 

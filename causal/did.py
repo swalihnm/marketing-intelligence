@@ -75,7 +75,17 @@ def simulate_two_region_launch(
     noise_a = rng.normal(0, noise_sd, n_weeks)
     noise_b = rng.normal(0, noise_sd, n_weeks)
 
-    spend_a = np.where(t >= launch_week, weekly_spend_after_launch, 0.0)
+    # realistic week-to-week spend variation post-launch (real campaigns
+    # don't spend exactly the same amount every week) — also matters for
+    # causal/mmm_vs_did.py: a perfectly flat step function (0, then exactly
+    # constant) turned out to leave beta/alpha/s/k severely underidentified
+    # for a single-channel MMM fit (1764 divergences, r-hat 3.4 in initial
+    # testing) since there's no within-period variation to pin down the
+    # adstock/saturation shape from. This fixes that the honest way — by
+    # making the simulated spend pattern realistic — rather than by
+    # tolerating or hiding the pathological diagnostics.
+    spend_noise = rng.normal(1.0, 0.15, n_weeks)
+    spend_a = np.where(t >= launch_week, weekly_spend_after_launch * np.clip(spend_noise, 0.5, 1.5), 0.0)
     # region B: channel never launches (the control region)
     adstock_a = geometric_adstock_numpy(spend_a, true_alpha, max_lag=8)
     contribution_a = true_beta * hill(adstock_a, true_s, true_k)
@@ -83,11 +93,20 @@ def simulate_two_region_launch(
     revenue_a = base_a + shared_trend + shared_season + contribution_a + noise_a
     revenue_b = base_b + shared_trend + shared_season + noise_b
 
+    # price: small independent noise, not connected to revenue — present so
+    # region A's panel can be fed to mmm/model.py::build_mmm (which requires
+    # a price column) for the MMM-vs-DiD reconciliation in
+    # causal/mmm_vs_did.py. Not part of the DiD analysis itself.
+    price = 100.0 + rng.normal(0, 2.0, 2 * n_weeks)
+
     df = pd.DataFrame({
         "week": np.tile(t, 2),
+        "t": np.tile(t, 2),
         "region": ["A_launch"] * n_weeks + ["B_control"] * n_weeks,
         "period": np.where(np.tile(t, 2) >= launch_week, "post", "pre"),
         "revenue": np.concatenate([revenue_a, revenue_b]),
+        "spend": np.concatenate([spend_a, np.zeros(n_weeks)]),
+        "price": price,
     })
     true_avg_contribution_post = float(contribution_a[t >= launch_week].mean())
     return df, true_avg_contribution_post

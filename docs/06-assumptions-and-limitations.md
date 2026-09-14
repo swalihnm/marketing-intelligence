@@ -28,15 +28,26 @@ Grouped by what's actually still a gap, not a changelog.
 - Geometric adstock only. Weibull (delayed-peak) adstock is on the spec's
   own cut list and was not implemented.
 - MMM coefficients (`beta_c`) are descriptive, not causal, except where
-  cross-checked — and only `causal/did.py`'s specific simulated scenario
-  has been cross-checked (against its own known ground truth, not against
-  the MMM's `beta_c` for the same effect — those two are still separate
-  simulations; see `docs/03-causal-identification.md`'s "not yet done"
-  section). Reverse causality from budget set as a percentage of forecast
-  revenue — the single biggest threat the spec names — is not addressed or
-  simulated anywhere in this codebase.
-- IV analysis was not implemented, per the spec's own cut order ("drop IV,
-  keep DiD").
+  cross-checked — `causal/did.py` (DiD vs. naive), `causal/reverse_causality.py`
+  (reverse-causality bias vs. IV correction), and `causal/mmm_vs_did.py`
+  (MMM vs. DiD on the literal same simulated effect) all cross-check
+  against known ground truth. See `docs/03-causal-identification.md`.
+- `causal/mmm_vs_did.py` surfaced a real limitation, not a hypothetical
+  one: a single-channel MMM fit on a newly-launched channel's short, low-
+  variation spend history produces a severely pathological posterior
+  (r-hat 3.43, divergences in 64% of draws) even though its point estimate
+  happens to land close to the true effect — the point estimate alone
+  would have looked fine without checking diagnostics. New channels with
+  narrow spend-range histories are a genuine MMM blind spot that DiD
+  doesn't share (DiD only needs a comparable control unit, not spend-level
+  variation to trace a saturation curve from).
+- IV was implemented (`causal/reverse_causality.py`), despite the spec's
+  own cut order allowing it to be dropped, because it directly closes the
+  "reverse causality" gap the spec calls the single biggest threat — but
+  only on a simplified **linear** spend→revenue specification. 2SLS is a
+  linear method; extending the IV correction to the full nonlinear
+  adstock+Hill `mmm/model.py` (a control-function or nonlinear-IV
+  approach) was not attempted.
 - The budget allocator's response function uses a steady-state adstock
   approximation (`spend / (1 - alpha)`), valid for constant weekly spend at
   the candidate allocation — it does not model ramp-up/ramp-down dynamics

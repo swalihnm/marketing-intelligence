@@ -14,11 +14,12 @@ validated experiment design and a causal-identification cross-check, not
 just a fitted model taken on faith.
 
 **Status: all four build phases complete, plus the correlation-sensitivity
-sweep, 31/31 tests passing.** A trimmed budget-allocator API is built,
-locally tested, and ready to deploy to Vercel — currently blocked on a
-permission on the connected Vercel account (see `progress.md`, Phase 5).
-See `progress.md` for the full build log and
-`docs/06-assumptions-and-limitations.md` for every honestly-stated gap.
+sweep, reverse-causality/IV, and MMM-vs-DiD reconciliation — 37/37 tests
+passing.** A trimmed budget-allocator API is built, locally tested, and
+ready to deploy to Vercel — currently blocked on a permission on the
+connected Vercel account (see `progress.md`, Phase 5). See `progress.md`
+for the full build log and `docs/06-assumptions-and-limitations.md` for
+every honestly-stated gap.
 
 ## Why this project has a data section before a modelling section
 
@@ -109,15 +110,30 @@ python -m experiment.analyze   # runs the simulation, matching, and DiD test end
 
 ## Causal identification
 
-`causal/did.py`: a channel launches in one region and not another, with a
-real shared confounder (a regional trend affecting both regions). Naive
-before/after estimate was **71.6% off** the known true effect; DiD (using
-the non-launch region as control) was **3.2% off**. `docs/03-causal-identification.md`
-also states plainly what's *not* addressed — reverse causality from
-budget-set-as-%-of-forecast-revenue remains an open, unaddressed threat.
+Three cross-checks against known simulated effects, all in
+`docs/03-causal-identification.md`:
+
+- `causal/did.py`: a channel launches in one region and not another, with
+  a real shared confounder (a regional trend). Naive before/after estimate
+  was **70.9% off** true; DiD (non-launch region as control) was **3.2%
+  off**.
+- `causal/reverse_causality.py`: budget set partly as a function of
+  forecast demand — the spec's named biggest causal threat, addressed with
+  an exogenous cost-shifter instrument ("platform CPM shock," the spec's
+  own suggestion). Naive OLS was **14.8% off** true beta; IV/2SLS was
+  **0.14% off**.
+- `causal/mmm_vs_did.py`: fits a single-channel MMM and DiD on the
+  *literal same* simulated effect. The MMM's point estimate looked fine
+  (2.5% off) but its posterior was badly broken (r-hat 3.43, divergences
+  in 64% of draws) — a newly-launched channel's narrow spend history
+  doesn't give MMM enough variation to identify, a limitation DiD doesn't
+  share. The chart carries this warning directly on the image so the
+  apparent agreement can't be misread without checking diagnostics.
 
 ```bash
 python -m causal.did
+python -m causal.reverse_causality
+python -m causal.mmm_vs_did
 ```
 
 ## Serving layer: API + dashboard
@@ -139,10 +155,10 @@ streamlit run app/dashboard.py       # dashboard at http://127.0.0.1:8501
 python -m pytest tests/ -v
 ```
 
-30 tests across transforms, the allocator (including a real bug the tests
-caught — see `progress.md`), causal identification, power analysis, the
-synthetic channel assignment, and the FastAPI app (via `TestClient`, no
-server needed).
+37 tests across transforms, the allocator (including a real bug the tests
+caught — see `progress.md`), causal identification (DiD, reverse-causality/
+IV, MMM-vs-DiD), power analysis, the synthetic channel assignment, and the
+FastAPI app (via `TestClient`, no server needed).
 
 ## Repository layout
 
@@ -152,7 +168,7 @@ transforms/     adstock (geometric) + saturation (Hill)                  [built]
 mmm/            Bayesian MMM in PyMC — priors, model, sampling           [built]
 ingest/         UCI Online Retail II loader [built]; Robyn/Meridian, Trends, FRED, weather [not built]
 sql/analytics/  cohorts, retention, RFM, CAC/LTV [built]; category, delivery [not feasible — see docs/01]
-causal/         DiD, validated against a known effect [built]; IV [not built, per spec's cut order]
+causal/         DiD, reverse-causality/IV, MMM-vs-DiD reconciliation — all validated [built]
 customer/       cohorts, channel_synth, BG/NBD + Gamma-Gamma CLV          [built]
 allocate/       posterior-based constrained budget optimizer + charts    [built]
 experiment/     geo-lift design + power analysis, validated              [built]
@@ -173,8 +189,8 @@ simulator was never built (see `progress.md`).
 
 See `docs/06-assumptions-and-limitations.md` for the full list. Highlights:
 the MMM media spine is entirely simulated (real spend data is proprietary
-and Tier 2/3 ingestion was never built); MMM coefficients are causal only
-under stated assumptions, and reverse causality from budget-set-as-%-of-
-forecast-revenue is a named, unaddressed threat; the MMM and DiD analyses
-are separate simulated scenarios, not reconciled on the same effect; and
-nothing in this repo is deployed to a live URL.
+and Tier 2/3 ingestion was never built — Trends/weather/holidays need no
+key and could be added; FRED needs a free key only the user can get); the
+reverse-causality IV correction is linear-only, not extended to the full
+nonlinear adstock+Hill model; and nothing in this repo is deployed to a
+live URL yet (a trimmed API is ready, blocked on a Vercel permission).

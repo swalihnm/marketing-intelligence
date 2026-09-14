@@ -1,0 +1,2 @@
+true_beta,naive_ols_estimate,naive_pct_error,iv_2sls_estimate,iv_pct_error,instrument_relevance_corr_cpm_spend,instrument_exclusion_check_corr_cpm_latent
+3.5,4.016873117399529,14.76780335427225,3.4950614139643377,0.14110245816178082,-0.843150564243786,0.012108420957810234

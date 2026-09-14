@@ -4,14 +4,17 @@ Tracking actual status against `PROJECT-03-marketing-mix-modelling.md`'s
 4-week plan (Section 10). Updated as work lands — this file, not memory of
 the spec, is the source of truth on what's actually built.
 
-Last updated: 2026-09-12.
+Last updated: 2026-09-14.
 
 ## Status at a glance
 
 **All four build phases are complete, plus the correlation-sensitivity
-sweep** (the one gap explicitly called out as missing after Phase 4). Live
-deployment is in progress, blocked on a Vercel account permission only the
-user can fix — see "Live deployment" below.
+sweep, plus reverse-causality/IV and MMM-vs-DiD reconciliation** — every
+item from the original "Known gaps" list is now closed except live
+deployment (blocked on a Vercel account permission only the user can fix —
+see "Live deployment" below) and real MMM media-spine ingestion (needs a
+free FRED API key from the user; Trends/weather/holidays don't need one
+but weren't prioritized — see "Known gaps").
 
 | Layer | Status |
 |---|---|
@@ -19,17 +22,20 @@ user can fix — see "Live deployment" below.
 | Bayesian MMM (adstock + Hill saturation, PyMC) | **Done** |
 | Diagnostics (r-hat, ESS, divergences, PPC, prior PC) | **Done** |
 | Correlation-sensitivity study (identification degradation) | **Done** — see docs/09-correlation-sensitivity.md |
-| Data ingestion — MMM media spine (Robyn/Meridian, Trends, FRED, weather) | Not started |
+| Data ingestion — MMM media spine (Robyn/Meridian, Trends, FRED, weather) | Not started (FRED needs a user-provided key) |
 | Data ingestion — customer data (Tier 4) | **Done, substituted dataset** (Olist → UCI Online Retail II; see docs/01) |
 | SQL analytics — cohorts, retention, RFM, CAC/LTV | **Done** |
 | SQL analytics — category contribution, delivery-impact-on-repeat | **Not feasible on substitute dataset** (needs Olist; see docs/01) |
-| Causal identification section + DiD | **Done** (DiD validated against known effect; IV skipped per spec's own cut order) |
+| Causal identification: DiD | **Done** — validated vs. naive (3.2% off vs. 70.9% off) |
+| Causal identification: reverse causality + IV | **Done** — IV 0.14% off vs. naive OLS 14.8% off (linear specification) |
+| Causal identification: MMM vs. DiD, same effect | **Done** — and found a real MMM limitation (see below) |
 | Customer layer — BG/NBD, Gamma-Gamma CLV | **Done** (validated on holdout; did not beat naive baseline — see docs/07) |
 | Experimentation design (geo-lift, power analysis) | **Done** (design validated against a known injected effect — see docs/05) |
 | Budget allocator (posterior-based, constrained) | **Done** (trust-constr over posterior draws; response curves, marginal ROI, budget sweep) |
 | FastAPI + Streamlit dashboard | **Done, built and locally tested** — not deployed (no hosting credentials; see docs/06) |
+| Trimmed API for Vercel | **Built, tested, ready — blocked on Vercel account permission** (see Phase 5) |
 | Dockerfile | Written, **not built/run** (Docker unavailable in this environment) |
-| Test suite | **30/30 passing** (`pytest tests/`) |
+| Test suite | **37/37 passing** (`pytest tests/`) |
 
 ## Week 1 target (spec): "Simulator + parameter recovery + data ingestion"
 
@@ -228,25 +234,76 @@ Full numbers: `outputs/reports/allocation_recommendation.csv`,
       needed to redeploy is ready** — this is purely waiting on the
       user's Vercel account, not on any further engineering work.
 
+## Phase 6: Reverse causality + IV, and MMM-vs-DiD reconciliation
+
+Both fully autonomous (no external credentials/accounts needed), closing
+two of the four items from the "Known gaps" list below Phase 5 used to
+have. `causal/did.py` extended (non-breaking) to also emit `t`/`price`/
+`spend` columns so region A's panel can feed `mmm/model.py::build_mmm`
+directly — same model class as the main 4-channel recovery study, applied
+to one simulated channel.
+
+- [x] `causal/reverse_causality.py` — budget set partly as a function of a
+      noisy forecast of an unobserved confound that also directly drives
+      revenue (textbook simultaneity), with an exogenous cost-shifter
+      instrument (`cpm` — the spec's own suggested "platform CPM shock").
+      **Naive OLS 14.8% off true beta (4.017 vs 3.5); IV/2SLS 0.14% off
+      (3.495)**. Instrument relevance strong (−0.84 corr with spend),
+      exclusion violation negligible (0.012 corr with the confound).
+      Deliberately linear (not the full adstock+Hill model) — documented
+      as a scope decision, since 2SLS doesn't directly extend to a
+      nonlinear model. `tests/test_reverse_causality.py` (4 tests).
+- [x] `causal/mmm_vs_did.py` — fits a single-channel MMM on region A's data
+      alone (no control region — how MMM is actually run in practice) for
+      the *same* channel-launch effect `causal/did.py` estimates via DiD.
+      **Finding, not massaged**: the MMM's point estimate (2.5% off) looks
+      fine, but its posterior is badly broken (r-hat 3.43, divergences in
+      64% of draws) — a newly-launched channel's short, narrow-range spend
+      history doesn't give MMM enough variation to identify adstock/
+      saturation, a limitation DiD (3.2% off, clean diagnostics) doesn't
+      share. Two fix attempts were made honestly, not glossed over: a
+      perfectly flat step-function spend pattern (1,764 divergences) was
+      first replaced with ±15% realistic week-to-week variation (still
+      1,537 divergences) — the identification problem persisted, which
+      is itself the finding, not a bug to keep chasing. The chart
+      (`fig_mmm_vs_did.png`) carries a warning annotation directly on the
+      image so the apparent bar-height agreement can't be misread as
+      "both methods agree" without checking diagnostics.
+      `tests/test_mmm_vs_did.py` (2 tests, checking the shared data
+      pipeline, not the PyMC fit itself — too slow for the test suite).
+- [x] `docs/03-causal-identification.md` — fully rewritten with both new
+      sections plus the existing DiD section; this is now the closest
+      thing this project has to the spec's requested "here is my MMM
+      estimate, here is my quasi-experimental estimate, here is why they
+      differ" — answered with a diagnostics-driven reason (data
+      requirements), not just a confounder-handling one.
+- [x] 37/37 tests passing (6 new: 4 reverse-causality, 2 mmm-vs-did).
+
 ## Known gaps (honest, not hidden)
 
-- **MMM-vs-DiD reconciliation on the same effect** — `causal/did.py` and
-  `simulate/dgp.py` are independently parameterized simulations; no single
-  dataset feeds both an MMM fit and a DiD estimate for literally the same
-  channel effect, so the spec's "here's my MMM estimate, here's my
-  quasi-experimental estimate, here's why they differ" isn't demonstrated.
-- **Reverse causality** (budget set as % of forecast revenue) — named as
-  the biggest causal threat in the spec, not simulated or addressed
-  anywhere in this codebase.
+- **Extending the IV correction to the full nonlinear MMM** —
+  `causal/reverse_causality.py` uses a linear specification; 2SLS doesn't
+  directly apply to the adstock+Hill model in `mmm/model.py`. A
+  control-function or nonlinear-IV approach would be needed and wasn't
+  attempted.
 - **MMM media-spine ingestion** (Tier 2/3: Robyn/Meridian reference data,
   Google Trends, FRED, weather) — never built. Every MMM number in this
-  repo is on Tier-1 simulated data.
+  repo is on Tier-1 simulated data. Google Trends (`pytrends`), Open-Meteo
+  weather, and the `holidays` package need no API key and could be added
+  without further user input; FRED (macro covariates) needs a free key
+  from https://fred.stlouisfed.org/docs/api/api_key.html that only the
+  user can obtain. Not prioritized when scope was last discussed with the
+  user (2026-09-12) — they chose the correlation-sensitivity sweep and
+  deployment instead.
 - **Live deployment** — the full FastAPI + Streamlit apps are built and
   locally verified but not deployed (no cloud hosting credentials for
   those specifically). A trimmed API *is* ready to deploy to the user's
-  connected Vercel account (see Phase 5 above) but is blocked on a
-  permission issue on that account, not on missing engineering work.
-  Docker image not built or run (Docker unavailable in this environment).
+  connected Vercel account (see Phase 5) but is blocked on a permission
+  issue on that account (confirmed still blocked as of 2026-09-14 — same
+  403 "you don't have permission to create a project" error, reproduced
+  fresh with a minimal single-file test deploy), not on missing
+  engineering work. Docker image not built or run (Docker unavailable in
+  this environment).
 
 ## Environment notes (matters for reproducing runs)
 
