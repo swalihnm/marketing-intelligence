@@ -1,55 +1,18 @@
-"""Shared, dependency-light logic for the trimmed Vercel API.
-
-Deliberately does NOT import from the main repo's `allocate`/`transforms`
-packages, even though most of their logic is pure numpy — `allocate.optimizer`
-imports `arviz` (which pulls in xarray/netCDF/h5py), and keeping this
-serverless function's dependency footprint to numpy+scipy only is the whole
-point of the "trimmed API" approach (see README.md in this directory). The
-Hill/adstock math is small enough that duplicating it here, rather than
-importing it, is the more reliable choice for a serverless deploy.
+"""Dependency-light core logic for the trimmed Vercel API: numpy + scipy
+only, no PyMC/PyTensor/numba/arviz at runtime. Serves a pre-fitted
+posterior (exported once, offline, via ../export_for_vercel.py) rather
+than fitting live. See README.md in this directory for why.
 """
 from __future__ import annotations
 
 import json
-from http.server import BaseHTTPRequestHandler
 from pathlib import Path
-from urllib.parse import parse_qs, urlparse
 
 import numpy as np
 from scipy.optimize import NonlinearConstraint, minimize
 from scipy.stats import norm
 
-DATA_DIR = Path(__file__).resolve().parent.parent / "data"
-
-
-class JSONHandler(BaseHTTPRequestHandler):
-    """Shared JSON request/response + CORS handling for every endpoint."""
-
-    def _json(self, status: int, payload: dict) -> None:
-        self.send_response(status)
-        self.send_header("Content-Type", "application/json")
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.end_headers()
-        self.wfile.write(json.dumps(payload).encode())
-
-    def _error(self, status: int, message: str) -> None:
-        self._json(status, {"error": message})
-
-    def _read_json_body(self) -> dict:
-        length = int(self.headers.get("Content-Length", 0) or 0)
-        if length == 0:
-            return {}
-        return json.loads(self.rfile.read(length))
-
-    def _query_params(self) -> dict:
-        return {k: v[0] for k, v in parse_qs(urlparse(self.path).query).items()}
-
-    def do_OPTIONS(self):  # CORS preflight
-        self.send_response(204)
-        self.send_header("Access-Control-Allow-Origin", "*")
-        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
-        self.send_header("Access-Control-Allow-Headers", "Content-Type")
-        self.end_headers()
+DATA_DIR = Path(__file__).resolve().parent / "data"
 
 
 def hill(x, s, k):
