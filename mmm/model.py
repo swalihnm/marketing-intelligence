@@ -21,7 +21,21 @@ from transforms.adstock import geometric_adstock_pt
 from transforms.saturation import hill
 
 
-def build_mmm(df, channels: list[str], max_lag: int = 8, price_col: str = "price") -> pm.Model:
+def build_mmm(
+    df, channels: list[str], max_lag: int = 8, price_col: str = "price",
+    extra_covariates: dict[str, np.ndarray] | None = None,
+) -> pm.Model:
+    """`extra_covariates` is an optional, backward-compatible extension
+    (added in Phase 8, for fitting on ingest/build_tier2_panel.py's real
+    Tier 3 covariates alongside the Tier 2 reference spine): a dict of
+    {name: raw series}. Each gets its own standardized linear term
+    (coefficient = revenue change per 1-std-dev move in the covariate) —
+    standardizing keeps the coefficients comparably scaled and the
+    sampler well-conditioned regardless of each covariate's raw units
+    (an index, a percentage, degrees Celsius, etc). Omitting this
+    parameter (the default) reproduces the exact model used throughout
+    Phases 1-6 on simulated data — nothing about the existing recovery
+    study or allocator changes."""
     T = len(df)
     t = df["t"].values.astype(float)
     revenue = df["revenue"].values.astype(float)
@@ -73,12 +87,22 @@ def build_mmm(df, channels: list[str], max_lag: int = 8, price_col: str = "price
             contributions.append(beta[i] * saturated)
         channel_effect = pt.sum(pt.stack(contributions, axis=0), axis=0)
 
+        extra_effect = 0.0
+        if extra_covariates:
+            for name, series in extra_covariates.items():
+                series = np.asarray(series, dtype=float)
+                standardized = (series - series.mean()) / series.std()
+                cov_data = pm.Data(f"covariate_{name}", standardized, dims="obs_id")
+                coef = pm.Normal(f"coef_{name}", mu=0, sigma=float(revenue.std()))
+                extra_effect = extra_effect + coef * cov_data
+
         mu = (
             intercept
             + trend_coef * t_data
             + season
             + price_coef * (price_data - price_baseline)
             + channel_effect
+            + extra_effect
         )
         pm.Deterministic("mu", mu, dims="obs_id")
 

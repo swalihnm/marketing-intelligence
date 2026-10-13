@@ -1,27 +1,31 @@
 # Assumptions and limitations
 
-Updated for the completed build (all four phases — see `progress.md`).
-Grouped by what's actually still a gap, not a changelog.
+Updated through the real-data ingestion and Tier 2 fit pass — see
+`progress.md`. Grouped by what's actually still a gap, not a changelog.
 
 ## Data
 
-- The MMM media spine is, and remains, entirely simulated
-  (`simulate/dgp.py`). Real multi-channel spend data is proprietary; Tier
-  2/3 ingestion (Robyn/Meridian reference spine, Google Trends, FRED,
-  weather) was never built — see `docs/01-data-sources-and-honesty.md`.
-  Every MMM result in this repo (recovery, response curves, the allocator,
-  the DiD comparison) is on simulated data with known ground truth, not
-  real spend.
+- The project's headline MMM results (parameter recovery, correlation
+  sensitivity, the allocator) are all on Tier-1 **simulated** data with
+  known ground truth (`simulate/dgp.py`) — that remains true and is the
+  basis for those results' validation claims.
+- Real Tier 2/3 data has since been pulled in and actually used in a fit:
+  Meta's own Robyn reference demo spine (`ingest/robyn_reference.py`) and
+  real FRED/Google Trends/weather covariates
+  (`ingest/fred_client.py`, `trends_client.py`, `weather_client.py`),
+  joined (`ingest/build_tier2_panel.py`) and fit (`mmm/fit_tier2.py`). That
+  fit's posterior is **not usable** (see Modelling, below) — real data
+  being available doesn't mean every fit on it succeeds, and this one
+  didn't, for a diagnosed and documented reason.
 - The customer economics layer runs on real data (UCI Online Retail II),
   substituted for the spec's Olist (Kaggle auth unavailable here) — see
   `docs/01`. It has no acquisition-channel field; CAC/LTV-by-channel uses a
   documented synthetic channel assignment, not real attribution.
 - The MMM and customer-economics layers use genuinely different datasets
-  (one simulated, one real) and are never merged. The spec's suggested
-  cross-check ("MMM says a channel is efficient but its customers churn
-  fast") isn't possible here for that reason — there's no single dataset
-  where both a channel's MMM contribution and its customers' retention are
-  observed together.
+  and are never merged. The spec's suggested cross-check ("MMM says a
+  channel is efficient but its customers churn fast") isn't possible here
+  for that reason — there's no single dataset where both a channel's MMM
+  contribution and its customers' retention are observed together.
 
 ## Modelling
 
@@ -40,14 +44,25 @@ Grouped by what's actually still a gap, not a changelog.
   would have looked fine without checking diagnostics. New channels with
   narrow spend-range histories are a genuine MMM blind spot that DiD
   doesn't share (DiD only needs a comparable control unit, not spend-level
-  variation to trace a saturation curve from).
+  variation to trace a saturation curve from). **Confirmed independently**
+  on a second, real-shaped dataset: `mmm/fit_tier2.py`'s fit on Meta's real
+  Robyn reference spine (4 of 5 channels with 51–59% zero-spend weeks)
+  produced the identical signature — r-hat 3.43, 86.6% divergent draws,
+  unchanged by a higher `target_accept` and more tuning. This is now a
+  twice-confirmed, not a one-off, limitation.
 - IV was implemented (`causal/reverse_causality.py`), despite the spec's
   own cut order allowing it to be dropped, because it directly closes the
   "reverse causality" gap the spec calls the single biggest threat — but
-  only on a simplified **linear** spend→revenue specification. 2SLS is a
-  linear method; extending the IV correction to the full nonlinear
-  adstock+Hill `mmm/model.py` (a control-function or nonlinear-IV
-  approach) was not attempted.
+  only on a simplified **linear** spend→revenue specification. Extending
+  it to the full nonlinear adstock+Hill model was then attempted
+  (`causal/nonlinear_iv.py`, a control-function approach) and **did not
+  work**: the naive nonlinear fit was already close to true (0.7% off),
+  and the control-function correction made it *worse* (14.7% off) because
+  the instrument was too weak relative to the endogeneity mechanism
+  (first-stage R² = 0.33), leaving the "control" residual nearly collinear
+  with the channel's own spend (r = 0.82) rather than cleanly isolating
+  the confound. A stronger instrument or a more principled joint-estimation
+  approach would be needed — not attempted here. See `docs/03`.
 - The budget allocator's response function uses a steady-state adstock
   approximation (`spend / (1 - alpha)`), valid for constant weekly spend at
   the candidate allocation — it does not model ramp-up/ramp-down dynamics
@@ -72,16 +87,20 @@ Grouped by what's actually still a gap, not a changelog.
 
 ## Serving
 
-- The FastAPI app (`app/main.py`) and Streamlit dashboard
-  (`app/dashboard.py`) are built, and both were manually confirmed to serve
-  real HTTP requests correctly (not just via test client) during
-  development. **Neither is deployed to a public/live URL.** That needs
-  cloud hosting credentials (a Vercel/Fly/Render/similar account) that
-  aren't available in this non-interactive build environment — stated
-  plainly rather than glossed over or faked. A `Dockerfile` is included but
-  **not built or run** in this environment either (Docker isn't installed
-  here); it follows standard patterns but is unverified beyond a read-
-  through.
+- The full FastAPI app (`app/main.py`) and Streamlit dashboard
+  (`app/dashboard.py`) are built and were manually confirmed to serve real
+  HTTP requests correctly during development, but are not deployed (too
+  heavy for serverless — PyMC/PyTensor/numba/arviz).
+- A trimmed, numpy+scipy+FastAPI-only version (`deploy/vercel-api/`) **is
+  deployed and live**, by the user, via Vercel's dashboard "Drop to
+  Deploy" (the connected Vercel MCP integration itself hit a permission
+  error creating new projects — not an engineering gap, see `progress.md`).
+  Build success was confirmed via the user's own screenshot. The Vercel
+  connector has since disconnected from this session entirely, so
+  real-HTTP endpoint re-verification is pending the URL again.
+- A `Dockerfile` is included but **not built or run** in this environment
+  (Docker isn't installed here); it follows standard patterns but is
+  unverified beyond a read-through.
 
 ## Environment
 

@@ -1,0 +1,54 @@
+﻿.\.venv\Scripts\python.exe : g++ not available, if using conda: `conda install gxx`
+At line:2 char:1
++ .\.venv\Scripts\python.exe -m mmm.fit_tier2 2>&1 | Tee-Object -FilePa ...
++ ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+    + CategoryInfo          : NotSpecified: (g++ not availab...da install gxx`:String) [], RemoteException
+    + FullyQualifiedErrorId : NativeCommandError
+ 
+Initializing NUTS using jitter+adapt_diag...
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Multiprocess sampling (4 chains in 4 jobs)
+NUTS: [intercept, trend_coef, season_a1, season_b1, season_a2, season_b2, price_coef, beta, alpha, hill_s, hill_k, 
+coef_consumer_sentiment, coef_brand_search_interest, coef_temperature_mean_c, sigma]
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+g++ not available, if using conda: `conda install gxx`
+Sampling 4 chains for 1_000 tune and 1_000 draw iterations (4_000 + 4_000 draws total) took 55 seconds.
+There were 3563 divergences after tuning. Increase `target_accept` or reparameterize.
+The rhat statistic is larger than 1.01 for some parameters. This indicates problems during sampling. See 
+https://arxiv.org/abs/1903.08008 for details
+The effective sample size per chain is smaller than 100 for some parameters.  A higher number is needed for reliable 
+rhat and ess computation. See https://arxiv.org/abs/1903.08008 for details
+C:\Users\swali\OneDrive\Desktop\project 3\.venv\Lib\site-packages\pytensor\tensor\rewriting\elemwise.py:1004: 
+UserWarning: Loop fusion failed because the resulting node would exceed the kernel argument limit.
+  warn(
+Sampling: [revenue_obs]
+r_hat_max: 3.4221358532821675
+ess_bulk_min: 5.011568180446069
+n_divergences: 3563
+                    parameter           mean  ...      hdi_upper  excludes_zero
+0                    beta[tv]  443761.955192  ...  815985.131643           True
+1                   beta[ooh]  398098.714291  ...  718690.664523           True
+2                 beta[print]  330861.604218  ...  773927.900481           True
+3              beta[facebook]  336019.946418  ...  593865.794307           True
+4                beta[search]  542106.735595  ...  727643.925599           True
+5     coef_consumer_sentiment  -14858.913028  ...    8456.123104          False
+6  coef_brand_search_interest   47751.091596  ...  126447.020718          False
+7     coef_temperature_mean_c  -32918.668116  ...     326.503568          False
+
+[8 rows x 5 columns]

@@ -30,9 +30,11 @@ pytrends       # Google Trends brand-search interest
 holidays       # holiday calendar (Open-Meteo weather uses plain `requests`,
                # already a transitive dependency, no new package needed)
 
+# Phase 8 (installed, in use — Tier 2 reference spine + nonlinear IV)
+pyreadr      # parses Robyn's demo dataset (.RData) without needing R installed
+
 # Not installed / not yet used
 # polars
 # cvxpy   # considered for the allocator; not used — see allocate/optimizer.py's
 #         # docstring for why (Hill saturation is non-convex for s>1; uses
 #         # scipy trust-constr instead)
-# Robyn/Meridian reference media spine — still not built; see docs/01

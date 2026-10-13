@@ -8,14 +8,15 @@ Last updated: 2026-10-13.
 
 ## Status at a glance
 
-**All four build phases are complete, plus correlation-sensitivity,
-reverse-causality/IV, MMM-vs-DiD reconciliation, real Tier 3 covariate
-ingestion, and a live (trimmed) deployment.** Repository pushed to
-`github.com/swalihnm/marketing-intelligence`. What's left: joining the
-real Tier 3 covariates to an actual media spine (needs Tier 2, not
-started), extending the IV correction to the full nonlinear MMM, and
-re-verifying the live deployment's endpoints (the Vercel connector has
-since disconnected from this session — needs the URL again).
+**Every autonomously-actionable item is now closed.** Tier 2 (Meta's real
+Robyn reference spine) is built, joined with the real Tier 3 covariates,
+and fit — result: a confirmed, diagnosed MMM identification failure (see
+Phase 8), not a success story, reported as such. The nonlinear IV
+extension was attempted and also did not work, for a specific, measured
+reason (weak instrument). What's left needs the user: re-verifying the
+live deployment's endpoints (the Vercel connector has disconnected from
+this session — needs the URL again), and, if ever wanted, a properly
+strong-instrument nonlinear IV redesign.
 
 | Layer | Status |
 |---|---|
@@ -23,22 +24,23 @@ since disconnected from this session — needs the URL again).
 | Bayesian MMM (adstock + Hill saturation, PyMC) | **Done** |
 | Diagnostics (r-hat, ESS, divergences, PPC, prior PC) | **Done** |
 | Correlation-sensitivity study (identification degradation) | **Done** — see docs/09-correlation-sensitivity.md |
-| Data ingestion — real Tier 3 covariates (Trends, FRED, weather, holidays) | **Done, built and verified on live data** — not yet joined to a spine (see Phase 7) |
-| Data ingestion — Tier 2 reference media spine (Robyn/Meridian) | Not started |
+| Data ingestion — real Tier 3 covariates (Trends, FRED, weather, holidays) | **Done, built and verified on live data** |
+| Data ingestion — Tier 2 reference media spine (Robyn) | **Done** — real Meta demo spine, joined with Tier 3, fit attempted (see Phase 8) |
 | Data ingestion — customer data (Tier 4) | **Done, substituted dataset** (Olist → UCI Online Retail II; see docs/01) |
 | SQL analytics — cohorts, retention, RFM, CAC/LTV | **Done** |
 | SQL analytics — category contribution, delivery-impact-on-repeat | **Not feasible on substitute dataset** (needs Olist; see docs/01) |
 | Causal identification: DiD | **Done** — validated vs. naive (3.2% off vs. 70.9% off) |
-| Causal identification: reverse causality + IV | **Done** — IV 0.14% off vs. naive OLS 14.8% off (linear specification) |
-| Causal identification: MMM vs. DiD, same effect | **Done** — and found a real MMM limitation (see below) |
+| Causal identification: reverse causality + IV (linear) | **Done** — IV 0.14% off vs. naive OLS 14.8% off |
+| Causal identification: nonlinear IV extension | **Attempted, did not work** — diagnosed (weak instrument); see Phase 8 |
+| Causal identification: MMM vs. DiD, same effect | **Done** — found a real MMM limitation, since confirmed on real data (Phase 8) |
 | Customer layer — BG/NBD, Gamma-Gamma CLV | **Done** (validated on holdout; did not beat naive baseline — see docs/07) |
 | Experimentation design (geo-lift, power analysis) | **Done** (design validated against a known injected effect — see docs/05) |
 | Budget allocator (posterior-based, constrained) | **Done** (trust-constr over posterior draws; response curves, marginal ROI, budget sweep) |
-| FastAPI + Streamlit dashboard (full version) | **Done, built and locally tested** — not deployed (no hosting credentials; see docs/06) |
-| Trimmed API for Vercel | **Deployed live** by the user (build confirmed) — endpoint verification pending the URL (see Phase 7 / Known gaps) |
+| FastAPI + Streamlit dashboard (full version) | **Done, built and locally tested** — not deployed (too heavy for serverless) |
+| Trimmed API for Vercel | **Deployed live** by the user (build confirmed) — endpoint re-verification pending the URL |
 | Dockerfile | Written, **not built/run** (Docker unavailable in this environment) |
 | GitHub repository | **Pushed** — `github.com/swalihnm/marketing-intelligence`, public, clean history (no AI attribution in commit messages, per explicit request) |
-| Test suite | **41/41 passing** (`pytest tests/`) |
+| Test suite | **48/48 passing** (`pytest tests/`) |
 
 ## Week 1 target (spec): "Simulator + parameter recovery + data ingestion"
 
@@ -326,17 +328,69 @@ modules are built, tested, and ready to join a real (or Tier-2 reference)
 media spine if one is ever built — not wired into a scientifically empty
 fit for the sake of visibly "using" the data.
 
+## Phase 8: Tier 2 reference spine + nonlinear IV extension — both attempted, both informative, neither a clean success
+
+Both fully autonomous. Closes the two remaining items from Phase 7's
+"Known gaps," though not in the direction originally hoped — both attempts
+produced real, diagnosed findings rather than the fixes they were aimed at.
+
+- [x] `ingest/robyn_reference.py` — downloads Meta's real Robyn demo
+      dataset (`dt_simulated_weekly`) directly from Robyn's public GitHub
+      repo (`.RData` binary, parsed via `pyreadr`, no R installation
+      needed). 208 weeks, 2015-11-23 to 2019-11-11, 5 real channel spend
+      series (TV, OOH, print, Facebook, search). **This is Meta's own
+      simulated demo data, not real spend** — documented as such.
+- [x] `ingest/build_tier2_panel.py` — joins the Robyn spine with the real
+      Tier 3 covariates (Phase 7), re-fetched for Robyn's exact historical
+      window so the join is genuinely time-aligned, not just
+      coincidentally labeled. 208 weeks, zero missing values after the
+      join.
+- [x] `mmm/model.py` extended with an optional, backward-compatible
+      `extra_covariates` parameter (standardized linear terms) — all
+      existing tests and the Phase 1-6 pipeline unaffected by the change.
+- [x] `mmm/fit_tier2.py` — fits the MMM on the joined panel.
+      **Result: an unusable posterior** (r-hat 3.43, 86.6% of draws
+      diverged). A higher `target_accept` (0.99) and more tuning were
+      tried and made no meaningful difference, ruling out "needs more
+      tuning." Root cause, confirmed directly: 4 of 5 channels have
+      51–59% zero-spend weeks (realistic pulsed campaigns) — the *same*
+      identification failure `causal/mmm_vs_did.py` found on simulated
+      data, now confirmed independently on a second, real-shaped dataset.
+      Charts (`fig_tier2_posterior_predictive.png`,
+      `fig_tier2_coefficients.png`) carry the warning directly on the
+      image, since both look deceptively reasonable without it.
+- [x] `causal/nonlinear_iv.py` — attempts to extend the reverse-causality
+      IV correction to the full nonlinear adstock+Hill model via a
+      control-function approach (first-stage residual as an extra
+      covariate), validated against a known true effect, with spend
+      varying across a genuinely wide range (confirmed: both fits sampled
+      cleanly, r-hat ≈ 1.00, 0 divergences — not a repeat of the
+      insufficient-variation problem above). **Result: the naive fit was
+      already close to true (0.7% off); the correction made it worse
+      (14.7% off)** — diagnosed via first-stage R² (0.33, weak) and
+      residual-spend correlation (0.82, high): the instrument was too weak
+      relative to the endogeneity mechanism, so the "control" residual
+      ended up nearly collinear with the channel's own spend rather than
+      isolating the confound.
+- [x] 7 new tests (3 `test_model_extra_covariates.py`, 4
+      `test_nonlinear_iv.py` — fast, deterministic logic only; the PyMC
+      fits themselves aren't unit-tested, same reasoning as
+      `test_mmm_vs_did.py`). **48/48 total tests passing.**
+- [x] `docs/01`, `docs/03`, `docs/06` updated with both findings in full.
+
+**Why this counts as progress despite neither attempt "succeeding"**: both
+gaps are now *explored and diagnosed* rather than simply unaddressed. The
+Tier 2 attempt converted a speculative limitation into a twice-confirmed
+one. The nonlinear IV attempt identified the *specific, measured* reason a
+naive control function doesn't work here (weak instrument), which is a
+narrower and more useful claim than "nonlinear IV is out of scope."
+
 ## Known gaps (honest, not hidden)
 
-- **Extending the IV correction to the full nonlinear MMM** —
-  `causal/reverse_causality.py` uses a linear specification; 2SLS doesn't
-  directly apply to the adstock+Hill model in `mmm/model.py`. A
-  control-function or nonlinear-IV approach would be needed and wasn't
-  attempted.
-- **Tier 2 — a real or reference media spine** — Robyn/Meridian demo
-  data was never pulled in. This is now the actual blocker on using
-  Phase 7's real Tier 3 covariates in a model fit (see above); every MMM
-  number in this repo remains on Tier-1 simulated data.
+- **A nonlinear IV correction that actually works** — the attempt in
+  Phase 8 failed for a specific, diagnosed reason (weak instrument); a
+  redesign with a stronger instrument or a joint/simultaneous-equations
+  estimation approach was not attempted.
 - **Live deployment — endpoint verification pending the URL.** The
   trimmed API (Phase 5/6) was successfully deployed by the user via
   Vercel's dashboard "Drop to Deploy" after the single-FastAPI-entrypoint

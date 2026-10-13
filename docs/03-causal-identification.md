@@ -87,14 +87,53 @@ Instrument diagnostics: relevance (correlation between `cpm` and `spend`)
 the unobserved confound, which should be ~0 since they're constructed
 independently) = 0.012, negligible. `outputs/figures/fig_reverse_causality_iv.png`.
 
-**Scope note, stated plainly**: this uses a linear spend→revenue
-specification, not the full adstock+Hill-saturation MMM — 2SLS is a linear
-method and doesn't directly apply to a nonlinear model without a
-control-function or nonlinear-IV extension, which is out of scope here.
-This demonstrates the identification mechanics (why reverse causality
-biases naive estimates, and how a cost-shifter instrument corrects for it),
-not a drop-in fix for `mmm/model.py` itself, which still does not account
-for reverse causality.
+**Scope note**: this uses a linear spend→revenue specification, not the
+full adstock+Hill-saturation MMM — 2SLS is a linear method and doesn't
+directly apply to a nonlinear model without a control-function or
+nonlinear-IV extension. That extension was attempted — see below — and did
+not straightforwardly work, which is itself informative.
+
+### Attempting to extend IV to the full nonlinear MMM
+
+`causal/nonlinear_iv.py` extends the mechanics above to the actual
+adstock+Hill model (via `mmm/model.py`'s new `extra_covariates` parameter,
+added for this): simulate a single channel with a **known** true
+beta/alpha/s/k and the same kind of endogenous-budget mechanism as above,
+but with spend varying across a genuinely wide multiplicative range (not a
+step function — both fits sampled cleanly, r-hat ≈ 1.00, zero divergences,
+confirming this isn't a repeat of the identification-failure finding
+below). The standard fix for endogeneity in a nonlinear model is a
+**control function**: estimate the first-stage residual (the part of
+spend the instrument doesn't explain) and include it as an extra
+covariate in the structural model, rather than replacing spend with fitted
+values the way 2SLS does.
+
+**Result, reported as found, not as hoped:**
+
+| | naive nonlinear MMM | control-function corrected |
+|---|---|---|
+| Estimated avg. weekly contribution | £159,639 | £135,215 |
+| True avg. weekly contribution | £158,482 | £158,482 |
+| % error | **0.7%** | **14.7%** |
+
+**The naive fit was already close to true, and the correction made it
+worse.** Diagnosed, not just observed: first-stage R² (how well `cpm`
+predicts spend) = **0.33** — a weak instrument relative to the
+budget-forecast endogeneity mechanism — so the residual ends up correlated
+with spend itself at **r = 0.82**, nearly a copy of the channel's own
+spend rather than a clean isolation of the confound-driven component.
+Adding a near-duplicate of a channel's own (nonlinearly-transformed) spend
+as a second covariate destabilizes the nonlinear parameters rather than
+correcting them. `outputs/figures/fig_nonlinear_iv_correction.png` carries
+these diagnostics directly on the chart.
+
+**What this does and doesn't mean**: this is not evidence that nonlinear
+IV correction is impossible — it's evidence that the naive "just add the
+residual" version of a control function needs a stronger instrument (or a
+more principled joint/simultaneous-equations estimation approach) than
+this specific simulated scenario provides. The "extend IV to the nonlinear
+MMM" gap is explored and diagnosed here, with a specific, measured reason
+for the failure — not fully closed.
 
 ### MMM estimate vs. quasi-experimental estimate for the same effect
 
@@ -151,14 +190,25 @@ effect reasonably well by point estimate), but because **MMM's data
 requirements for a new channel are steeper than DiD's**, and checking
 diagnostics — not just comparing point estimates — is what reveals that.
 
+**This is not a one-off.** The same failure mode recurred independently on
+a real-shaped dataset: fitting the MMM on Meta's real Robyn reference media
+spine (`mmm/fit_tier2.py`, `docs/01-data-sources-and-honesty.md`) — 4 of 5
+channels with 51–59% zero-spend weeks from realistic pulsed campaigns —
+produced the same signature (r-hat 3.43, 86.6% divergent draws, unchanged
+by more tuning). Two independent confirmations of the same mechanism is a
+stronger claim than either alone.
+
 ## Bottom line
 
 Treat every `beta_c` in this repo's MMM output as descriptive, not causal,
 unless cross-checked. DiD is implemented and validated against a known
-effect. Reverse causality now has an IV-based check (on a simplified
-linear specification). MMM and DiD have been reconciled on literally the
-same simulated effect, with a substantive, diagnostics-driven answer for
-why they can disagree. What's still not done: extending the IV correction
-to the full nonlinear adstock+Hill model, and (necessarily, since it
-requires real deployed data) confirming any of this transfers to a real
-business's channel history.
+effect. Reverse causality has an IV-based check on a linear specification,
+and an attempted (not fully successful, but diagnosed) extension to the
+nonlinear model. MMM and DiD have been reconciled on literally the same
+simulated effect, with a substantive, diagnostics-driven answer for why
+they can disagree — confirmed independently on a second, real dataset.
+What's still not done: a nonlinear IV correction that actually works (this
+attempt failed for a specific, measured reason — a weak instrument — not
+an unexamined one), and (necessarily, since it requires real deployed
+data) confirming any of this transfers to a real business's channel
+history.

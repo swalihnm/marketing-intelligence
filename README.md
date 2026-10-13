@@ -14,13 +14,14 @@ same total budget, 90% credible interval £35,817–£92,071 — see
 validated experiment design and a causal-identification cross-check, not
 just a fitted model taken on faith.
 
-**Status: all four build phases complete, plus correlation-sensitivity,
-reverse-causality/IV, MMM-vs-DiD reconciliation, real Tier 3 covariate
-ingestion (FRED/Trends/weather/holidays, all verified on live data), and a
-live deployment — 41/41 tests passing.** Repository:
-`github.com/swalihnm/marketing-intelligence`. See `progress.md` for the
-full build log and `docs/06-assumptions-and-limitations.md` for every
-honestly-stated gap.
+**Status: all eight build phases complete — 48/48 tests passing.** Real
+Tier 2 (Meta's Robyn reference spine) and Tier 3 (FRED/Trends/weather/
+holidays) data have been ingested, joined, and fit; a nonlinear IV
+correction was attempted. Both produced honestly-reported findings rather
+than clean successes (see below) — a trimmed API is deployed live.
+Repository: `github.com/swalihnm/marketing-intelligence`. See
+`progress.md` for the full build log and
+`docs/06-assumptions-and-limitations.md` for every honestly-stated gap.
 
 ## Why this project has a data section before a modelling section
 
@@ -137,6 +138,32 @@ python -m causal.reverse_causality
 python -m causal.mmm_vs_did
 ```
 
+## Real data: Tier 2 reference spine + Tier 3 covariates, joined and fit
+
+Meta's own Robyn demo dataset (`ingest/robyn_reference.py`, real channel
+spend/revenue as published, not this project's simulation) joined with
+real FRED/Trends/weather data for the matching historical weeks
+(`ingest/build_tier2_panel.py`), then fit with the same MMM used
+throughout (`mmm/fit_tier2.py`). **Result, reported as found**: an
+unusable posterior (r-hat 3.43, 86.6% of draws diverged) — the same
+identification failure `causal/mmm_vs_did.py` found on simulated data,
+now confirmed independently on real data (4 of 5 channels have 51–59%
+zero-spend weeks from realistic pulsed campaigns).
+
+A nonlinear IV correction (`causal/nonlinear_iv.py`) was then attempted,
+extending the reverse-causality fix to the actual adstock+Hill model via a
+control-function approach. It made bias *worse*, not better (14.7% off vs.
+naive's 0.7% off) — diagnosed down to a weak instrument (first-stage
+R²=0.33), not left unexplained. Full writeup: `docs/03-causal-identification.md`,
+`docs/01-data-sources-and-honesty.md`.
+
+```bash
+python -m ingest.robyn_reference
+python -m ingest.build_tier2_panel
+python -m mmm.fit_tier2
+python -m causal.nonlinear_iv
+```
+
 ## Serving layer: API + dashboard
 
 `app/main.py` (FastAPI, all 4 spec endpoints) and `app/dashboard.py`
@@ -156,23 +183,23 @@ streamlit run app/dashboard.py       # dashboard at http://127.0.0.1:8501
 python -m pytest tests/ -v
 ```
 
-41 tests across transforms, the allocator (including a real bug the tests
+48 tests across transforms, the allocator (including a real bug the tests
 caught — see `progress.md`), causal identification (DiD, reverse-causality/
-IV, MMM-vs-DiD), power analysis, the synthetic channel assignment, the
-holiday-calendar ingestion logic, and the FastAPI app (via `TestClient`,
-no server needed).
+IV, MMM-vs-DiD, nonlinear IV), power analysis, the synthetic channel
+assignment, the holiday-calendar ingestion logic, the `extra_covariates`
+model extension, and the FastAPI app (via `TestClient`, no server needed).
 
 ## Repository layout
 
 ```
 simulate/       ground-truth DGP + parameter recovery harness           [built]
 transforms/     adstock (geometric) + saturation (Hill)                  [built]
-mmm/            Bayesian MMM in PyMC — priors, model, sampling           [built]
-ingest/         UCI Online Retail II loader + real Tier 3 covariates
-                (FRED, Trends, weather, holidays — all verified on live
-                data) [built]; Tier 2 reference media spine [not built]
+mmm/            Bayesian MMM in PyMC — priors, model, sampling, real-data fit [built]
+ingest/         UCI Online Retail II loader; real Tier 3 covariates (FRED,
+                Trends, weather, holidays); Meta's real Robyn reference
+                spine; the Tier 2+3 panel join                          [built]
 sql/analytics/  cohorts, retention, RFM, CAC/LTV [built]; category, delivery [not feasible — see docs/01]
-causal/         DiD, reverse-causality/IV, MMM-vs-DiD reconciliation — all validated [built]
+causal/         DiD, reverse-causality/IV, MMM-vs-DiD reconciliation, nonlinear IV attempt [built]
 customer/       cohorts, channel_synth, BG/NBD + Gamma-Gamma CLV          [built]
 allocate/       posterior-based constrained budget optimizer + charts    [built]
 experiment/     geo-lift design + power analysis, validated              [built]
@@ -186,19 +213,18 @@ docs/           methodology, data honesty, results, limitations           [built
 Python 3.12, PyMC 5/6 + ArviZ (no C++ compiler required — falls back to a
 pure-Python/numba backend automatically), NumPy/Pandas/SciPy/Matplotlib,
 DuckDB, `lifetimes`, FastAPI, Streamlit, `fredapi`, `pytrends`, `holidays`,
-`python-dotenv` — all installed and in use. CVXPY deliberately not used
-(see `allocate/optimizer.py`). Polars not installed — the Tier 2 reference
-media spine (Robyn/Meridian) was never built (see `progress.md`).
+`python-dotenv`, `pyreadr` — all installed and in use. CVXPY deliberately
+not used (see `allocate/optimizer.py`). Polars not installed.
 
 ## Limitations
 
 See `docs/06-assumptions-and-limitations.md` for the full list. Highlights:
-the MMM media spine is entirely simulated (real spend data is proprietary);
-real Tier 3 covariates (FRED/Trends/weather/holidays) are ingested and
-verified but not joined to a model fit, since no real or reference media
-spine (Tier 2) exists to join them to — joining them to the simulated
-spine would produce coefficients that look like a finding but mean
-nothing; the reverse-causality IV correction is linear-only, not extended
-to the full nonlinear adstock+Hill model; and the live-deployed trimmed
-API's endpoints haven't been re-verified since the Vercel connector
-disconnected from this session.
+the MMM's headline validation results (recovery, correlation sensitivity,
+allocator) are all on Tier-1 simulated data, which is correct — validation
+needs known ground truth; real data (Tier 2 Robyn spine + Tier 3
+FRED/Trends/weather) was joined and fit, and produced an unusable
+posterior, a real and diagnosed MMM limitation, not a missing step; the
+nonlinear IV correction was attempted and made bias worse for a diagnosed
+reason (weak instrument); and the live-deployed trimmed API's endpoints
+haven't been re-verified since the Vercel connector disconnected from this
+session.

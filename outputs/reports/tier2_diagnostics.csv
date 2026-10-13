@@ -1,0 +1,2 @@
+n_weeks,channels,extra_covariates,chains,draws_per_chain,tune,r_hat_max,ess_bulk_min,n_divergences
+208,"tv,ooh,print,facebook,search","consumer_sentiment,brand_search_interest,temperature_mean_c",4,1000,1500,3.433390789504554,5.0077060117029975,3465

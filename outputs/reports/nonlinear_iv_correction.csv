@@ -1,0 +1,2 @@
+true_avg_contribution,naive_avg_contribution,naive_pct_error,naive_r_hat_max,naive_n_divergences,corrected_avg_contribution,corrected_pct_error,corrected_r_hat_max,corrected_n_divergences,control_function_coef_mean,first_stage_r2,residual_spend_correlation,correction_helped
+158482.13911421917,159639.00215021847,0.7299642991097801,1.003632260857691,0,135215.05765571693,14.681201041672903,1.0047802144204865,0,16107.273284821049,0.3277012190385019,0.8199382787512107,False
