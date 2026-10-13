@@ -1,11 +1,14 @@
 # Marketing Mix Modelling, Budget Allocation & Customer Economics
 ## Complete Project Report
 
-**Status as of 2026-09-15**: All six build phases complete. 37/37 automated
-tests passing. A trimmed budget-allocator API is deployed and live (build
-verified successful; live-endpoint testing pending the URL). Everything in
-this report is backed by a file in this repository — every number below
-has a CSV, a chart, or a test behind it.
+**Status as of 2026-10-13**: All seven build phases complete. 41/41
+automated tests passing. A trimmed budget-allocator API is deployed and
+live (build verified successful; live-endpoint testing pending the URL).
+Real Tier 3 external covariates (FRED, Google Trends, weather, holidays)
+are ingested and verified on live data. Repository pushed to
+`github.com/swalihnm/marketing-intelligence`. Everything in this report is
+backed by a file in this repository — every number below has a CSV, a
+chart, or a test behind it.
 
 This report consolidates the entire build: what was built, how, and what
 it found. `progress.md` remains the living, chronological build log if you
@@ -41,7 +44,8 @@ model taken on faith.
 | Do customers who convert via the recommended channels actually stick around? | Built the layer to check (real transactional data); CLV modeling itself didn't beat a naive baseline here — reported as-is |
 | Is a validated experiment ready to confirm any of this in the real world? | **Yes** — geo-lift design detected a known +12% injected effect at p<0.001 |
 | Can the MMM's coefficients be trusted causally? | **Not by default** — but three separate quasi-experimental cross-checks (DiD, IV, MMM-vs-DiD) are built, each validated against known ground truth, with one of them (MMM-vs-DiD) surfacing a genuine, non-obvious MMM limitation |
-| Is anything live on the internet? | **Yes** — a trimmed version of the allocator API, deployed to Vercel |
+| Is anything live on the internet? | **Yes** — a trimmed version of the allocator API, deployed to Vercel; repository public on GitHub |
+| Does any real-world data back this up? | **Partially, honestly scoped** — customer economics runs on real transactions (UCI); FRED/Trends/weather/holidays are real and verified, but not yet joined to a model fit since no real media spine exists to join them to |
 
 ---
 
@@ -69,22 +73,24 @@ Full detail: `docs/01-data-sources-and-honesty.md`.
 simulate/        ground-truth DGP + parameter recovery + correlation sensitivity
 transforms/      adstock (geometric) + saturation (Hill) — pure numpy/PyTensor
 mmm/             Bayesian MMM in PyMC — priors, model, sampling
-ingest/          UCI Online Retail II loader → DuckDB warehouse
+ingest/          UCI Online Retail II loader → DuckDB warehouse; real Tier 3
+                 covariates (FRED, Google Trends, weather, holidays)
 sql/analytics/   cohorts, retention, RFM, CAC/LTV (DuckDB SQL)
 customer/        cohort analytics wrapper, synthetic channel assignment, BG/NBD+Gamma-Gamma CLV
 experiment/      geo-lift simulator, matching, power analysis, DiD analysis
 causal/          DiD, reverse-causality/IV, MMM-vs-DiD reconciliation
 allocate/        posterior-based constrained budget optimizer + charts
 app/             FastAPI (full) + Streamlit dashboard
-deploy/          trimmed (numpy+scipy+FastAPI-only) Vercel deployment
+deploy/          trimmed (numpy+scipy+FastAPI-only) Vercel deployment — live
 docs/            9 numbered methodology/results/limitations documents
-tests/           37 tests across every layer
+tests/           41 tests across every layer
 outputs/         every figure (PNG) and result (CSV) this report cites
 ```
 
 **Stack**: Python 3.12, PyMC 6 + ArviZ (no C++ compiler needed — verified
 working via a numba fallback), NumPy/Pandas/SciPy/Matplotlib, DuckDB,
-`lifetimes`, FastAPI, Streamlit. CVXPY deliberately not used (see §9).
+`lifetimes`, FastAPI, Streamlit, `fredapi`, `pytrends`, `holidays`,
+`python-dotenv`. CVXPY deliberately not used (see §9).
 
 ---
 
@@ -392,15 +398,56 @@ over:**
 **Status**: build succeeded (confirmed via the user's own screenshot — the
 landing page rendered correctly, meaning the app loaded). Live-endpoint
 verification (health check, a real allocation request) is pending the
-deployment URL, which lives in a separate Vercel account from the one this
-session's integration can access — see `progress.md` for the account
-mismatch explanation.
+deployment URL — the Vercel MCP connector has since disconnected from this
+session entirely, so neither the URL nor the deployment can currently be
+inspected from here; it lives in a separate Vercel account ("Swalih") from
+the one that connector had access to in the first place. See `progress.md`
+for the full account-mismatch explanation.
+
+---
+
+### Phase 7 — Real Tier 3 external covariate ingestion
+
+The MMM media spine (Tiers 1–2) remains entirely simulated — but the real
+external covariates the spec's Tier 3 calls for are now built and verified
+pulling live data, using a free FRED API key the user obtained.
+
+- **`ingest/fred_client.py`** — FRED macro series (`UMCSENT`, `CPIAUCSL`,
+  `RSXFS`, `PCE`) via the official FRED API, key loaded from a local
+  `.env` (gitignored, never committed — `.env.example` documents the
+  variable name). **Verified: 140 real monthly observations, 2015-01
+  through 2026-08.**
+- **`ingest/trends_client.py`** — Google Trends brand/category search
+  interest via `pytrends`, no key needed. **Verified: 262 real weekly
+  observations** — worked on the first attempt (no rate-limiting hit, a
+  real risk with unofficial scraping-based APIs like this one).
+- **`ingest/weather_client.py`** — Open-Meteo daily temperature and
+  precipitation, no key needed. **Verified: 2,112 real daily
+  observations** (303 weekly, aggregated).
+- **`ingest/holidays_calendar.py`** — US holiday calendar (`holidays`
+  package) plus Black Friday/Cyber Monday, computed rather than looked up
+  (the package treats these as informal, not public, holidays — Black
+  Friday = day after the 4th Thursday of November, Cyber Monday = the
+  following Monday). No network call needed. **Verified: 87 real holiday
+  events, 2021–2026.**
+
+**What's deliberately still not done, and why**: none of these four real
+series have been joined to an actual model fit. `simulate/dgp.py`'s
+simulated spend/revenue has no real causal relationship to real-world
+consumer sentiment, search interest, or weather — regressing simulated
+revenue on real macro data would produce coefficients that look like a
+finding but mean nothing. That would be exactly the kind of dressed-up
+false signal this project's entire honesty framing (§3) exists to avoid.
+These modules are built, tested where their logic is deterministic
+(`tests/test_holidays_calendar.py` — FRED/Trends/weather need live network
+calls, not suitable for a committed test suite), and ready to join a real
+or Tier-2-reference media spine if one is ever built.
 
 ---
 
 ## 6. Testing
 
-**37/37 tests passing** — `python -m pytest tests/ -v`
+**41/41 tests passing** — `python -m pytest tests/ -v`
 
 | File | Tests | Covers |
 |---|---|---|
@@ -413,7 +460,8 @@ mismatch explanation.
 | `test_correlation_sensitivity.py` | 1 | Sweep range sanity check |
 | `test_reverse_causality.py` | 4 | Naive bias, IV correction, instrument validity |
 | `test_mmm_vs_did.py` | 2 | Shared data pipeline (not the PyMC fit — too slow for the suite) |
-| **Total** | **37** | |
+| `test_holidays_calendar.py` | 4 | Black Friday/Cyber Monday computation, calendar build, weekly aggregation |
+| **Total** | **41** | |
 
 One genuine bug caught by this suite, not a hypothetical: the allocator's
 SLSQP-based optimizer silently returning an infeasible allocation (§5,
@@ -457,8 +505,8 @@ Every figure and CSV this report cites, by location:
 | Gap | Why it's still open |
 |---|---|
 | Extending the IV correction to the full nonlinear MMM | 2SLS is linear; the adstock+Hill model needs a control-function or nonlinear-IV approach, not attempted |
-| MMM media-spine ingestion (real Robyn/Meridian spine, Google Trends, FRED, weather) | Trends/weather/holidays need no API key and could be added; FRED needs a free key only the user can obtain — not prioritized when scope was last discussed |
-| Live endpoint verification | Deployed successfully (build confirmed) but to a Vercel account outside this session's reach — verification pending the URL |
+| Tier 2 — a real or reference media spine (Robyn/Meridian demo data) | Never pulled in. This is now the actual blocker on using Phase 7's real Tier 3 covariates in a model fit — every MMM number in this report remains on Tier-1 simulated data |
+| Live endpoint verification | Deployed successfully by the user (build confirmed via their screenshot) but the Vercel MCP connector has since disconnected from this session entirely — neither the URL nor the deployment can currently be inspected from here |
 | Docker image | Written to standard patterns, never built/run — Docker isn't installed in this environment |
 
 Full detail: `docs/06-assumptions-and-limitations.md`.
@@ -513,6 +561,13 @@ python -m simulate.correlation_sensitivity
 # Phase 6
 python -m causal.reverse_causality
 python -m causal.mmm_vs_did
+
+# Phase 7 (copy .env.example to .env and fill in a free FRED key first —
+# https://fredaccount.stlouisfed.org/apikeys)
+python -m ingest.fred_client
+python -m ingest.trends_client --keyword "online shopping"
+python -m ingest.weather_client
+python -m ingest.holidays_calendar
 
 # Testing
 python -m pytest tests/ -v

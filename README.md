@@ -14,13 +14,13 @@ same total budget, 90% credible interval £35,817–£92,071 — see
 validated experiment design and a causal-identification cross-check, not
 just a fitted model taken on faith.
 
-**Status: all four build phases complete, plus the correlation-sensitivity
-sweep, reverse-causality/IV, and MMM-vs-DiD reconciliation — 37/37 tests
-passing.** A trimmed budget-allocator API is built, locally tested, and
-ready to deploy to Vercel — currently blocked on a permission on the
-connected Vercel account (see `progress.md`, Phase 5). See `progress.md`
-for the full build log and `docs/06-assumptions-and-limitations.md` for
-every honestly-stated gap.
+**Status: all four build phases complete, plus correlation-sensitivity,
+reverse-causality/IV, MMM-vs-DiD reconciliation, real Tier 3 covariate
+ingestion (FRED/Trends/weather/holidays, all verified on live data), and a
+live deployment — 41/41 tests passing.** Repository:
+`github.com/swalihnm/marketing-intelligence`. See `progress.md` for the
+full build log and `docs/06-assumptions-and-limitations.md` for every
+honestly-stated gap.
 
 ## Why this project has a data section before a modelling section
 
@@ -156,10 +156,11 @@ streamlit run app/dashboard.py       # dashboard at http://127.0.0.1:8501
 python -m pytest tests/ -v
 ```
 
-37 tests across transforms, the allocator (including a real bug the tests
+41 tests across transforms, the allocator (including a real bug the tests
 caught — see `progress.md`), causal identification (DiD, reverse-causality/
-IV, MMM-vs-DiD), power analysis, the synthetic channel assignment, and the
-FastAPI app (via `TestClient`, no server needed).
+IV, MMM-vs-DiD), power analysis, the synthetic channel assignment, the
+holiday-calendar ingestion logic, and the FastAPI app (via `TestClient`,
+no server needed).
 
 ## Repository layout
 
@@ -167,13 +168,16 @@ FastAPI app (via `TestClient`, no server needed).
 simulate/       ground-truth DGP + parameter recovery harness           [built]
 transforms/     adstock (geometric) + saturation (Hill)                  [built]
 mmm/            Bayesian MMM in PyMC — priors, model, sampling           [built]
-ingest/         UCI Online Retail II loader [built]; Robyn/Meridian, Trends, FRED, weather [not built]
+ingest/         UCI Online Retail II loader + real Tier 3 covariates
+                (FRED, Trends, weather, holidays — all verified on live
+                data) [built]; Tier 2 reference media spine [not built]
 sql/analytics/  cohorts, retention, RFM, CAC/LTV [built]; category, delivery [not feasible — see docs/01]
 causal/         DiD, reverse-causality/IV, MMM-vs-DiD reconciliation — all validated [built]
 customer/       cohorts, channel_synth, BG/NBD + Gamma-Gamma CLV          [built]
 allocate/       posterior-based constrained budget optimizer + charts    [built]
 experiment/     geo-lift design + power analysis, validated              [built]
 app/            FastAPI + Streamlit dashboard, built and locally tested; not deployed
+deploy/         trimmed API — deployed live to Vercel                    [built]
 docs/           methodology, data honesty, results, limitations           [built]
 ```
 
@@ -181,17 +185,20 @@ docs/           methodology, data honesty, results, limitations           [built
 
 Python 3.12, PyMC 5/6 + ArviZ (no C++ compiler required — falls back to a
 pure-Python/numba backend automatically), NumPy/Pandas/SciPy/Matplotlib,
-DuckDB, `lifetimes`, FastAPI, Streamlit — all installed and in use. CVXPY
-deliberately not used (see `allocate/optimizer.py`). Polars, `statsmodels`,
-`pytrends`, `fredapi` not installed — MMM media-spine ingestion beyond the
-simulator was never built (see `progress.md`).
+DuckDB, `lifetimes`, FastAPI, Streamlit, `fredapi`, `pytrends`, `holidays`,
+`python-dotenv` — all installed and in use. CVXPY deliberately not used
+(see `allocate/optimizer.py`). Polars not installed — the Tier 2 reference
+media spine (Robyn/Meridian) was never built (see `progress.md`).
 
 ## Limitations
 
 See `docs/06-assumptions-and-limitations.md` for the full list. Highlights:
-the MMM media spine is entirely simulated (real spend data is proprietary
-and Tier 2/3 ingestion was never built — Trends/weather/holidays need no
-key and could be added; FRED needs a free key only the user can get); the
-reverse-causality IV correction is linear-only, not extended to the full
-nonlinear adstock+Hill model; and nothing in this repo is deployed to a
-live URL yet (a trimmed API is ready, blocked on a Vercel permission).
+the MMM media spine is entirely simulated (real spend data is proprietary);
+real Tier 3 covariates (FRED/Trends/weather/holidays) are ingested and
+verified but not joined to a model fit, since no real or reference media
+spine (Tier 2) exists to join them to — joining them to the simulated
+spine would produce coefficients that look like a finding but mean
+nothing; the reverse-causality IV correction is linear-only, not extended
+to the full nonlinear adstock+Hill model; and the live-deployed trimmed
+API's endpoints haven't been re-verified since the Vercel connector
+disconnected from this session.

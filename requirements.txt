@@ -23,12 +23,16 @@ uvicorn
 httpx        # FastAPI TestClient dependency, used in tests/test_api.py
 streamlit
 
-# Not installed / not yet used — MMM media-spine ingestion beyond the
-# simulator (Robyn/Meridian reference spine, Trends, FRED, weather)
+# Phase 7 (installed, in use — real Tier 3 external covariate ingestion)
+python-dotenv  # loads FRED_API_KEY from .env (gitignored, never committed)
+fredapi        # FRED macro covariates (UMCSENT, CPIAUCSL, RSXFS, PCE)
+pytrends       # Google Trends brand-search interest
+holidays       # holiday calendar (Open-Meteo weather uses plain `requests`,
+               # already a transitive dependency, no new package needed)
+
+# Not installed / not yet used
 # polars
-# pytrends
-# fredapi
-# holidays
 # cvxpy   # considered for the allocator; not used — see allocate/optimizer.py's
 #         # docstring for why (Hill saturation is non-convex for s>1; uses
 #         # scipy trust-constr instead)
+# Robyn/Meridian reference media spine — still not built; see docs/01

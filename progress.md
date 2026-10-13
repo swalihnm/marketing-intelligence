@@ -4,17 +4,18 @@ Tracking actual status against `PROJECT-03-marketing-mix-modelling.md`'s
 4-week plan (Section 10). Updated as work lands — this file, not memory of
 the spec, is the source of truth on what's actually built.
 
-Last updated: 2026-09-14.
+Last updated: 2026-10-13.
 
 ## Status at a glance
 
-**All four build phases are complete, plus the correlation-sensitivity
-sweep, plus reverse-causality/IV and MMM-vs-DiD reconciliation** — every
-item from the original "Known gaps" list is now closed except live
-deployment (blocked on a Vercel account permission only the user can fix —
-see "Live deployment" below) and real MMM media-spine ingestion (needs a
-free FRED API key from the user; Trends/weather/holidays don't need one
-but weren't prioritized — see "Known gaps").
+**All four build phases are complete, plus correlation-sensitivity,
+reverse-causality/IV, MMM-vs-DiD reconciliation, real Tier 3 covariate
+ingestion, and a live (trimmed) deployment.** Repository pushed to
+`github.com/swalihnm/marketing-intelligence`. What's left: joining the
+real Tier 3 covariates to an actual media spine (needs Tier 2, not
+started), extending the IV correction to the full nonlinear MMM, and
+re-verifying the live deployment's endpoints (the Vercel connector has
+since disconnected from this session — needs the URL again).
 
 | Layer | Status |
 |---|---|
@@ -22,7 +23,8 @@ but weren't prioritized — see "Known gaps").
 | Bayesian MMM (adstock + Hill saturation, PyMC) | **Done** |
 | Diagnostics (r-hat, ESS, divergences, PPC, prior PC) | **Done** |
 | Correlation-sensitivity study (identification degradation) | **Done** — see docs/09-correlation-sensitivity.md |
-| Data ingestion — MMM media spine (Robyn/Meridian, Trends, FRED, weather) | Not started (FRED needs a user-provided key) |
+| Data ingestion — real Tier 3 covariates (Trends, FRED, weather, holidays) | **Done, built and verified on live data** — not yet joined to a spine (see Phase 7) |
+| Data ingestion — Tier 2 reference media spine (Robyn/Meridian) | Not started |
 | Data ingestion — customer data (Tier 4) | **Done, substituted dataset** (Olist → UCI Online Retail II; see docs/01) |
 | SQL analytics — cohorts, retention, RFM, CAC/LTV | **Done** |
 | SQL analytics — category contribution, delivery-impact-on-repeat | **Not feasible on substitute dataset** (needs Olist; see docs/01) |
@@ -32,10 +34,11 @@ but weren't prioritized — see "Known gaps").
 | Customer layer — BG/NBD, Gamma-Gamma CLV | **Done** (validated on holdout; did not beat naive baseline — see docs/07) |
 | Experimentation design (geo-lift, power analysis) | **Done** (design validated against a known injected effect — see docs/05) |
 | Budget allocator (posterior-based, constrained) | **Done** (trust-constr over posterior draws; response curves, marginal ROI, budget sweep) |
-| FastAPI + Streamlit dashboard | **Done, built and locally tested** — not deployed (no hosting credentials; see docs/06) |
-| Trimmed API for Vercel | **Built, tested, ready — blocked on Vercel account permission** (see Phase 5) |
+| FastAPI + Streamlit dashboard (full version) | **Done, built and locally tested** — not deployed (no hosting credentials; see docs/06) |
+| Trimmed API for Vercel | **Deployed live** by the user (build confirmed) — endpoint verification pending the URL (see Phase 7 / Known gaps) |
 | Dockerfile | Written, **not built/run** (Docker unavailable in this environment) |
-| Test suite | **37/37 passing** (`pytest tests/`) |
+| GitHub repository | **Pushed** — `github.com/swalihnm/marketing-intelligence`, public, clean history (no AI attribution in commit messages, per explicit request) |
+| Test suite | **41/41 passing** (`pytest tests/`) |
 
 ## Week 1 target (spec): "Simulator + parameter recovery + data ingestion"
 
@@ -284,6 +287,45 @@ to one simulated channel.
       requirements), not just a confounder-handling one.
 - [x] 37/37 tests passing (6 new: 4 reverse-causality, 2 mmm-vs-did).
 
+## Phase 7: Real Tier 3 external covariate ingestion
+
+Closes the "needs a FRED key" half of the media-ingestion gap below. User
+obtained a free FRED API key (2026-10-13) and all four planned real
+covariate sources are now built and verified pulling live data:
+
+- [x] `ingest/fred_client.py` — FRED macro series (`UMCSENT`, `CPIAUCSL`,
+      `RSXFS`, `PCE`). Key loaded from a local `.env` (gitignored, never
+      committed — `.env.example` documents the variable name). **Verified:
+      140 real monthly observations, 2015-01 through 2026-08.**
+- [x] `ingest/trends_client.py` — Google Trends brand/category search
+      interest via `pytrends`, no key needed. **Verified: 262 real weekly
+      observations**, worked on the first attempt (no rate-limiting hit).
+- [x] `ingest/weather_client.py` — Open-Meteo daily temperature/
+      precipitation, no key needed. **Verified: 2,112 real daily
+      observations** (303 weekly, aggregated).
+- [x] `ingest/holidays_calendar.py` — US holiday calendar (`holidays`
+      package) plus computed Black Friday/Cyber Monday (not in the
+      package — calculated as 4th-Thursday-of-November + 1 day /
+      + 4 days). No network call. **Verified: 87 real holiday events,
+      2021–2026.**
+- [x] `tests/test_holidays_calendar.py` — 4 new tests on the deterministic
+      logic (FRED/Trends/weather need live network calls, not suitable
+      for the committed test suite). **41/41 total tests passing.**
+- [x] `docs/01-data-sources-and-honesty.md` updated: Tier 3 status moved
+      from "not started" to "ingestion built and verified; not joined to
+      a spine" — stated explicitly why it stays unjoined (see below).
+
+**What's deliberately still not done, and why**: none of these four real
+series have been used in an actual model fit. `simulate/dgp.py`'s
+simulated spend/revenue has no real causal relationship to real-world
+consumer sentiment, search interest, or weather — regressing simulated
+revenue on real macro data would produce coefficients that look like a
+finding but mean nothing. That would be exactly the kind of dressed-up
+false signal this project's whole honesty framing exists to avoid. These
+modules are built, tested, and ready to join a real (or Tier-2 reference)
+media spine if one is ever built — not wired into a scientifically empty
+fit for the sake of visibly "using" the data.
+
 ## Known gaps (honest, not hidden)
 
 - **Extending the IV correction to the full nonlinear MMM** —
@@ -291,24 +333,21 @@ to one simulated channel.
   directly apply to the adstock+Hill model in `mmm/model.py`. A
   control-function or nonlinear-IV approach would be needed and wasn't
   attempted.
-- **MMM media-spine ingestion** (Tier 2/3: Robyn/Meridian reference data,
-  Google Trends, FRED, weather) — never built. Every MMM number in this
-  repo is on Tier-1 simulated data. Google Trends (`pytrends`), Open-Meteo
-  weather, and the `holidays` package need no API key and could be added
-  without further user input; FRED (macro covariates) needs a free key
-  from https://fred.stlouisfed.org/docs/api/api_key.html that only the
-  user can obtain. Not prioritized when scope was last discussed with the
-  user (2026-09-12) — they chose the correlation-sensitivity sweep and
-  deployment instead.
-- **Live deployment** — the full FastAPI + Streamlit apps are built and
-  locally verified but not deployed (no cloud hosting credentials for
-  those specifically). A trimmed API *is* ready to deploy to the user's
-  connected Vercel account (see Phase 5) but is blocked on a permission
-  issue on that account (confirmed still blocked as of 2026-09-14 — same
-  403 "you don't have permission to create a project" error, reproduced
-  fresh with a minimal single-file test deploy), not on missing
-  engineering work. Docker image not built or run (Docker unavailable in
-  this environment).
+- **Tier 2 — a real or reference media spine** — Robyn/Meridian demo
+  data was never pulled in. This is now the actual blocker on using
+  Phase 7's real Tier 3 covariates in a model fit (see above); every MMM
+  number in this repo remains on Tier-1 simulated data.
+- **Live deployment — endpoint verification pending the URL.** The
+  trimmed API (Phase 5/6) was successfully deployed by the user via
+  Vercel's dashboard "Drop to Deploy" after the single-FastAPI-entrypoint
+  restructure (build confirmed working — the user's own screenshot showed
+  the landing page rendering correctly). It landed in a Vercel account
+  ("Swalih") outside this session's connector access, and the Vercel MCP
+  connector has since disconnected entirely from this session, so neither
+  the URL nor the deployment can currently be inspected from here — real
+  HTTP endpoint verification (`/health`, a live `/allocate` call) is
+  pending the user supplying the URL again. Docker image still not built
+  or run (Docker unavailable in this environment).
 
 ## Environment notes (matters for reproducing runs)
 
